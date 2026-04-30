@@ -334,12 +334,28 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex justify-center pt-6 border-t border-border">
+              <div className="flex flex-col items-center gap-3 pt-6 border-t border-border">
+                {(() => {
+                  const missing: string[] = [];
+                  if (!cvFile) missing.push("upload your résumé");
+                  if (jdMode === "text") {
+                    if (jdText.trim().length === 0) missing.push("paste the job description");
+                    else if (jdText.trim().length < 50) missing.push(`add ${50 - jdText.trim().length} more characters to the job description`);
+                  } else if (!jdUrl.trim()) {
+                    missing.push("paste a job description URL");
+                  }
+                  if (missing.length === 0) return null;
+                  return (
+                    <p className="text-sm text-muted-foreground text-center">
+                      To continue, {missing.join(" and ")}.
+                    </p>
+                  );
+                })()}
                 <Button 
                   size="lg" 
                   className="font-serif text-lg px-12 py-6 rounded-full shadow-md hover:shadow-lg transition-all"
                   onClick={handleOptimize}
-                  disabled={!cvFile || (jdMode === "text" ? jdText.length < 50 : !jdUrl)}
+                  disabled={!cvFile || (jdMode === "text" ? jdText.trim().length < 50 : !jdUrl.trim())}
                 >
                   Optimize Résumé <ChevronRight className="ml-2 w-5 h-5" />
                 </Button>
