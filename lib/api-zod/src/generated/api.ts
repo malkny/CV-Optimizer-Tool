@@ -14,3 +14,66 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Accepts a CV file (PDF or DOCX) and a job description (text or URL).
+Returns an ATS match score, optimization summary, and download links
+for the optimized CV and tailored cover letter.
+
+ * @summary Optimize a CV against a job description
+ */
+export const OptimizeCvBody = zod.object({
+  cv: zod.instanceof(File).describe("CV file (.pdf or .docx, max 5MB)"),
+  jdText: zod
+    .string()
+    .optional()
+    .describe("Job description text (50-5000 chars)"),
+  jdUrl: zod.string().optional().describe("Job description URL (https only)"),
+});
+
+export const OptimizeCvResponse = zod.object({
+  sessionId: zod.string(),
+  atsScore: zod.number().describe("Overall ATS match score (0-100)"),
+  breakdown: zod.object({
+    keywords: zod.number().describe("Keyword alignment score (0-100)"),
+    experience: zod.number().describe("Experience alignment score (0-100)"),
+    formatting: zod.number().describe("ATS-friendly formatting score (0-100)"),
+    completeness: zod.number().describe("Section completeness score (0-100)"),
+  }),
+  summary: zod.object({
+    topImprovements: zod
+      .array(zod.string())
+      .describe("Top 3 improvements made to the CV"),
+    missingKeywords: zod
+      .array(zod.string())
+      .describe("Keywords from the JD that were weak or missing"),
+    nextSteps: zod
+      .array(zod.string())
+      .describe("Recommended next steps for the candidate"),
+  }),
+  downloads: zod.object({
+    cvPdf: zod.string(),
+    cvDocx: zod.string(),
+    coverLetterPdf: zod.string(),
+    coverLetterDocx: zod.string(),
+  }),
+  candidateName: zod.string().optional(),
+  jobTitle: zod.string().optional(),
+  expiresAt: zod.coerce
+    .date()
+    .describe("When the session and downloads will be purged"),
+});
+
+/**
+ * Download the optimized CV or cover letter in PDF or DOCX format.
+ * @summary Download an optimized file
+ */
+export const DownloadOptimizedFileParams = zod.object({
+  sessionId: zod.coerce.string(),
+  fileType: zod.enum([
+    "cv-pdf",
+    "cv-docx",
+    "cover-letter-pdf",
+    "cover-letter-docx",
+  ]),
+});

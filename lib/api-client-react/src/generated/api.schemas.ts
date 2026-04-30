@@ -8,3 +8,57 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+  code?: string;
+}
+
+export interface AtsBreakdown {
+  /** Keyword alignment score (0-100) */
+  keywords: number;
+  /** Experience alignment score (0-100) */
+  experience: number;
+  /** ATS-friendly formatting score (0-100) */
+  formatting: number;
+  /** Section completeness score (0-100) */
+  completeness: number;
+}
+
+export interface OptimizationSummary {
+  /** Top 3 improvements made to the CV */
+  topImprovements: string[];
+  /** Keywords from the JD that were weak or missing */
+  missingKeywords: string[];
+  /** Recommended next steps for the candidate */
+  nextSteps: string[];
+}
+
+export interface DownloadLinks {
+  cvPdf: string;
+  cvDocx: string;
+  coverLetterPdf: string;
+  coverLetterDocx: string;
+}
+
+export interface OptimizeResponse {
+  sessionId: string;
+  /** Overall ATS match score (0-100) */
+  atsScore: number;
+  breakdown: AtsBreakdown;
+  summary: OptimizationSummary;
+  downloads: DownloadLinks;
+  candidateName?: string;
+  jobTitle?: string;
+  /** When the session and downloads will be purged */
+  expiresAt: string;
+}
+
+export type OptimizeCvBody = {
+  /** CV file (.pdf or .docx, max 5MB) */
+  cv: Blob;
+  /** Job description text (50-5000 chars) */
+  jdText?: string;
+  /** Job description URL (https only) */
+  jdUrl?: string;
+};

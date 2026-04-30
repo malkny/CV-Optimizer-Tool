@@ -5,18 +5,26 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ErrorResponse,
+  HealthStatus,
+  OptimizeCvBody,
+  OptimizeResponse,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -92,6 +100,208 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Accepts a CV file (PDF or DOCX) and a job description (text or URL).
+Returns an ATS match score, optimization summary, and download links
+for the optimized CV and tailored cover letter.
+
+ * @summary Optimize a CV against a job description
+ */
+export const getOptimizeCvUrl = () => {
+  return `/api/optimize`;
+};
+
+export const optimizeCv = async (
+  optimizeCvBody: OptimizeCvBody,
+  options?: RequestInit,
+): Promise<OptimizeResponse> => {
+  const formData = new FormData();
+  formData.append(`cv`, optimizeCvBody.cv);
+  if (optimizeCvBody.jdText !== undefined) {
+    formData.append(`jdText`, optimizeCvBody.jdText);
+  }
+  if (optimizeCvBody.jdUrl !== undefined) {
+    formData.append(`jdUrl`, optimizeCvBody.jdUrl);
+  }
+
+  return customFetch<OptimizeResponse>(getOptimizeCvUrl(), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getOptimizeCvMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof optimizeCv>>,
+    TError,
+    { data: BodyType<OptimizeCvBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof optimizeCv>>,
+  TError,
+  { data: BodyType<OptimizeCvBody> },
+  TContext
+> => {
+  const mutationKey = ["optimizeCv"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof optimizeCv>>,
+    { data: BodyType<OptimizeCvBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return optimizeCv(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type OptimizeCvMutationResult = NonNullable<
+  Awaited<ReturnType<typeof optimizeCv>>
+>;
+export type OptimizeCvMutationBody = BodyType<OptimizeCvBody>;
+export type OptimizeCvMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Optimize a CV against a job description
+ */
+export const useOptimizeCv = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof optimizeCv>>,
+    TError,
+    { data: BodyType<OptimizeCvBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof optimizeCv>>,
+  TError,
+  { data: BodyType<OptimizeCvBody> },
+  TContext
+> => {
+  return useMutation(getOptimizeCvMutationOptions(options));
+};
+
+/**
+ * Download the optimized CV or cover letter in PDF or DOCX format.
+ * @summary Download an optimized file
+ */
+export const getDownloadOptimizedFileUrl = (
+  sessionId: string,
+  fileType: "cv-pdf" | "cv-docx" | "cover-letter-pdf" | "cover-letter-docx",
+) => {
+  return `/api/optimize/${sessionId}/download/${fileType}`;
+};
+
+export const downloadOptimizedFile = async (
+  sessionId: string,
+  fileType: "cv-pdf" | "cv-docx" | "cover-letter-pdf" | "cover-letter-docx",
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getDownloadOptimizedFileUrl(sessionId, fileType), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDownloadOptimizedFileQueryKey = (
+  sessionId: string,
+  fileType: "cv-pdf" | "cv-docx" | "cover-letter-pdf" | "cover-letter-docx",
+) => {
+  return [`/api/optimize/${sessionId}/download/${fileType}`] as const;
+};
+
+export const getDownloadOptimizedFileQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadOptimizedFile>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  sessionId: string,
+  fileType: "cv-pdf" | "cv-docx" | "cover-letter-pdf" | "cover-letter-docx",
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadOptimizedFile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getDownloadOptimizedFileQueryKey(sessionId, fileType);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof downloadOptimizedFile>>
+  > = ({ signal }) =>
+    downloadOptimizedFile(sessionId, fileType, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(sessionId && fileType),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadOptimizedFile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type DownloadOptimizedFileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadOptimizedFile>>
+>;
+export type DownloadOptimizedFileQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Download an optimized file
+ */
+
+export function useDownloadOptimizedFile<
+  TData = Awaited<ReturnType<typeof downloadOptimizedFile>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  sessionId: string,
+  fileType: "cv-pdf" | "cv-docx" | "cover-letter-pdf" | "cover-letter-docx",
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadOptimizedFile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getDownloadOptimizedFileQueryOptions(
+    sessionId,
+    fileType,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

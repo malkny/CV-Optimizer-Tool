@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: optimize
+    description: CV optimization operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,85 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /optimize:
+    post:
+      operationId: optimizeCv
+      tags: [optimize]
+      summary: Optimize a CV against a job description
+      description: |
+        Accepts a CV file (PDF or DOCX) and a job description (text or URL).
+        Returns an ATS match score, optimization summary, and download links
+        for the optimized CV and tailored cover letter.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                cv:
+                  type: string
+                  format: binary
+                  description: CV file (.pdf or .docx, max 5MB)
+                jdText:
+                  type: string
+                  description: Job description text (50-5000 chars)
+                jdUrl:
+                  type: string
+                  description: Job description URL (https only)
+              required:
+                - cv
+      responses:
+        "200":
+          description: Optimization completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OptimizeResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Optimization failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /optimize/{sessionId}/download/{fileType}:
+    get:
+      operationId: downloadOptimizedFile
+      tags: [optimize]
+      summary: Download an optimized file
+      description: Download the optimized CV or cover letter in PDF or DOCX format.
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: fileType
+          required: true
+          schema:
+            type: string
+            enum: [cv-pdf, cv-docx, cover-letter-pdf, cover-letter-docx]
+      responses:
+        "200":
+          description: File contents
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Session not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +114,88 @@ components:
           type: string
       required:
         - status
-
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+      required:
+        - error
+    AtsBreakdown:
+      type: object
+      properties:
+        keywords:
+          type: number
+          description: Keyword alignment score (0-100)
+        experience:
+          type: number
+          description: Experience alignment score (0-100)
+        formatting:
+          type: number
+          description: ATS-friendly formatting score (0-100)
+        completeness:
+          type: number
+          description: Section completeness score (0-100)
+      required: [keywords, experience, formatting, completeness]
+    OptimizationSummary:
+      type: object
+      properties:
+        topImprovements:
+          type: array
+          items:
+            type: string
+          description: Top 3 improvements made to the CV
+        missingKeywords:
+          type: array
+          items:
+            type: string
+          description: Keywords from the JD that were weak or missing
+        nextSteps:
+          type: array
+          items:
+            type: string
+          description: Recommended next steps for the candidate
+      required: [topImprovements, missingKeywords, nextSteps]
+    DownloadLinks:
+      type: object
+      properties:
+        cvPdf:
+          type: string
+        cvDocx:
+          type: string
+        coverLetterPdf:
+          type: string
+        coverLetterDocx:
+          type: string
+      required: [cvPdf, cvDocx, coverLetterPdf, coverLetterDocx]
+    OptimizeResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        atsScore:
+          type: number
+          description: Overall ATS match score (0-100)
+        breakdown:
+          $ref: "#/components/schemas/AtsBreakdown"
+        summary:
+          $ref: "#/components/schemas/OptimizationSummary"
+        downloads:
+          $ref: "#/components/schemas/DownloadLinks"
+        candidateName:
+          type: string
+        jobTitle:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the session and downloads will be purged
+      required:
+        - sessionId
+        - atsScore
+        - breakdown
+        - summary
+        - downloads
+        - expiresAt

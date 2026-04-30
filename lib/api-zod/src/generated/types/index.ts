@@ -6,4 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./atsBreakdown";
+export * from "./downloadLinks";
+export * from "./errorResponse";
 export * from "./healthStatus";
+export * from "./optimizationSummary";
+export * from "./optimizeCvBody";
+export * from "./optimizeResponse";
