@@ -87,7 +87,7 @@ export async function generateCvPdf(cv: OptimizedCv): Promise<Buffer> {
   doc.moveTo(MARGIN, ruleY).lineTo(doc.page.width - MARGIN, ruleY).lineWidth(0.75).strokeColor(ACCENT).stroke();
   doc.moveDown(0.3);
 
-  // Summary
+  // 1. Summary
   if (cv.summary) {
     sectionHeader(doc, "Summary");
     doc
@@ -97,7 +97,42 @@ export async function generateCvPdf(cv: OptimizedCv): Promise<Buffer> {
       .text(cv.summary, { align: "left", lineGap: 1.5 });
   }
 
-  // Education
+  // 2. Skills
+  if (cv.skills.length > 0) {
+    sectionHeader(doc, "Skills");
+    for (const s of cv.skills) {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(10.5)
+        .fillColor(TEXT)
+        .text(`${s.category}: `, { continued: true })
+        .font("Helvetica")
+        .fillColor(TEXT)
+        .text(s.items.join(", "));
+    }
+  }
+
+  // 3. Experience
+  if (cv.experience.length > 0) {
+    sectionHeader(doc, "Experience");
+    for (const x of cv.experience) {
+      const left = [x.company, x.location].filter(Boolean).join(", ");
+      const right = dateRange(x.startDate, x.endDate);
+      doc.font("Helvetica-Bold").fontSize(11).fillColor(TEXT).text(left, { continued: !!right });
+      if (right) {
+        doc.font("Helvetica").fontSize(10).fillColor(MUTED).text(right, { align: "right" });
+      }
+      if (x.title) {
+        doc.font("Helvetica-Oblique").fontSize(10.5).fillColor(TEXT).text(x.title);
+      }
+      for (const b of x.bullets) {
+        bullet(doc, b);
+      }
+      doc.moveDown(0.3);
+    }
+  }
+
+  // 4. Education
   if (cv.education.length > 0) {
     sectionHeader(doc, "Education");
     for (const e of cv.education) {
@@ -118,27 +153,7 @@ export async function generateCvPdf(cv: OptimizedCv): Promise<Buffer> {
     }
   }
 
-  // Experience
-  if (cv.experience.length > 0) {
-    sectionHeader(doc, "Experience");
-    for (const x of cv.experience) {
-      const left = [x.company, x.location].filter(Boolean).join(", ");
-      const right = dateRange(x.startDate, x.endDate);
-      doc.font("Helvetica-Bold").fontSize(11).fillColor(TEXT).text(left, { continued: !!right });
-      if (right) {
-        doc.font("Helvetica").fontSize(10).fillColor(MUTED).text(right, { align: "right" });
-      }
-      if (x.title) {
-        doc.font("Helvetica-Oblique").fontSize(10.5).fillColor(TEXT).text(x.title);
-      }
-      for (const b of x.bullets) {
-        bullet(doc, b);
-      }
-      doc.moveDown(0.3);
-    }
-  }
-
-  // Projects
+  // 5. Projects
   if (cv.projects.length > 0) {
     sectionHeader(doc, "Projects");
     for (const p of cv.projects) {
@@ -151,26 +166,17 @@ export async function generateCvPdf(cv: OptimizedCv): Promise<Buffer> {
     }
   }
 
-  // Skills
-  if (cv.skills.length > 0) {
-    sectionHeader(doc, "Skills");
-    for (const s of cv.skills) {
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(10.5)
-        .fillColor(TEXT)
-        .text(`${s.category}: `, { continued: true })
-        .font("Helvetica")
-        .fillColor(TEXT)
-        .text(s.items.join(", "));
-    }
-  }
-
-  // Awards
-  if (cv.awards.length > 0) {
-    sectionHeader(doc, "Awards & Honors");
-    for (const a of cv.awards) {
-      bullet(doc, a);
+  // 6. Professional Development (courses, certifications, awards)
+  if (cv.professionalDevelopment.length > 0) {
+    sectionHeader(doc, "Professional Development");
+    for (const item of cv.professionalDevelopment) {
+      const meta = [item.provider, item.year].filter(Boolean).join(" · ");
+      const headline = meta ? `${item.name} — ${meta}` : item.name;
+      doc.font("Helvetica-Bold").fontSize(10.5).fillColor(TEXT).text(headline);
+      if (item.details) {
+        doc.font("Helvetica").fontSize(10.5).fillColor(TEXT).text(item.details, { indent: 8, lineGap: 1 });
+      }
+      doc.moveDown(0.2);
     }
   }
 

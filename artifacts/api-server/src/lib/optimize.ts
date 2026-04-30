@@ -33,6 +33,13 @@ export interface CvProject {
   bullets: string[];
 }
 
+export interface CvProfessionalDevelopmentItem {
+  name: string;
+  provider?: string;
+  year?: string;
+  details?: string;
+}
+
 export interface OptimizedCv {
   candidateName: string;
   contact: ContactInfo;
@@ -41,7 +48,7 @@ export interface OptimizedCv {
   experience: CvExperience[];
   skills: { category: string; items: string[] }[];
   projects: CvProject[];
-  awards: string[];
+  professionalDevelopment: CvProfessionalDevelopmentItem[];
 }
 
 export interface OptimizationResult {
@@ -90,13 +97,13 @@ ${cvText.slice(0, 8000)}
 2. Extract contact info from the CV (email, phone, location, LinkedIn URL, personal website). Omit fields you cannot find — never invent contact info.
 3. Identify the job title from the JD.
 4. Rewrite the CV using ATS-optimized language: incorporate JD keywords, quantify impact where the original implies it, use strong action verbs, mirror the JD's terminology where the candidate's real experience supports it.
-5. Organize the CV into the Stanford-style sections below (omit sections the candidate has no content for; never invent content):
-   - summary: a 2-3 sentence professional summary tailored to the role.
-   - education: list entries with institution, degree, field, location, startDate, endDate (use formats like "2019" or "Sep 2019"), and 0-3 short detail bullets.
-   - experience: list entries with company, title, location, startDate, endDate, and 3-5 strong achievement bullets per role. Bullets should be one line each, start with an action verb, and incorporate JD keywords where truthful.
-   - skills: 2-5 categories (e.g. "Languages", "Frameworks", "Tools"), each with concise items. Mirror JD vocabulary where the candidate has the skill.
-   - projects: 0-4 projects with name, optional context, and 1-3 bullets.
-   - awards: 0-6 short lines.
+5. Organize the CV in this ATS-optimized order (omit sections the candidate has no content for; never invent content):
+   1. summary — a 2-3 sentence professional summary tailored to the role.
+   2. skills — 2-5 categories (e.g. "Languages", "Frameworks", "Tools"), each with concise items. Mirror JD vocabulary where the candidate has the skill.
+   3. experience — entries with company, title, location, startDate, endDate, and 3-5 strong achievement bullets per role. Bullets should be one line each, start with an action verb, and incorporate JD keywords where truthful.
+   4. education — entries with institution, degree, field, location, startDate, endDate (use formats like "2019" or "Sep 2019"), and 0-3 short detail bullets.
+   5. projects — 0-4 projects with name, optional context, and 1-3 bullets.
+   6. professionalDevelopment — 0-8 items, each with: name (course title, certification, or award), optional provider (e.g. "Coursera", "AWS", "ACM"), optional year, and an optional one-line details. Include relevant online courses, certifications, and awards. If the candidate's CV does not mention any, infer 1-3 plausible courses that genuinely match their listed skills (e.g. an "AWS Certified Solutions Architect" item only if AWS already appears in their skills/experience). Never fabricate brand-name credentials they don't have — if uncertain, prefer generic course titles like "Advanced React Patterns" over "Coursera React Certification".
 6. Compute an ATS match score:
    - Target the 90-95 range. Push to 95+ only if the candidate truly matches; never above 98.
    - breakdown: keywords (alignment with JD vocabulary, 0-100), experience (relevance of work history, 0-100), formatting (ATS-friendliness, 0-100; assume the rendered template is highly ATS-friendly so this is usually 90-100), completeness (presence of required CV sections, 0-100).
@@ -126,11 +133,11 @@ Respond with ONLY a JSON object matching this exact shape:
     "candidateName": string,
     "contact": { "email"?: string, "phone"?: string, "location"?: string, "linkedin"?: string, "website"?: string },
     "summary": string,
-    "education": [{ "institution": string, "degree": string, "field"?: string, "location"?: string, "startDate"?: string, "endDate"?: string, "details": string[] }],
-    "experience": [{ "company": string, "title": string, "location"?: string, "startDate"?: string, "endDate"?: string, "bullets": string[] }],
     "skills": [{ "category": string, "items": string[] }],
+    "experience": [{ "company": string, "title": string, "location"?: string, "startDate"?: string, "endDate"?: string, "bullets": string[] }],
+    "education": [{ "institution": string, "degree": string, "field"?: string, "location"?: string, "startDate"?: string, "endDate"?: string, "details": string[] }],
     "projects": [{ "name": string, "context"?: string, "bullets": string[] }],
-    "awards": string[]
+    "professionalDevelopment": [{ "name": string, "provider"?: string, "year"?: string, "details"?: string }]
   },
   "coverLetter": {
     "salutation": string,
@@ -224,7 +231,27 @@ function normalize(raw: unknown): OptimizationResult {
       }).filter((p) => p.name)
     : [];
 
-  const awards = ensureStringArray(cvIn["awards"]);
+  const professionalDevelopment: CvProfessionalDevelopmentItem[] = (() => {
+    const raw = cvIn["professionalDevelopment"] ?? cvIn["awards"];
+    if (!Array.isArray(raw)) return [];
+    return (raw as unknown[])
+      .map((entry) => {
+        if (typeof entry === "string") {
+          const trimmed = entry.trim();
+          return trimmed ? { name: trimmed } : null;
+        }
+        if (!entry || typeof entry !== "object") return null;
+        const e = entry as Record<string, unknown>;
+        const name = typeof e["name"] === "string" ? e["name"].trim() : "";
+        if (!name) return null;
+        const item: CvProfessionalDevelopmentItem = { name };
+        if (typeof e["provider"] === "string" && e["provider"].trim()) item.provider = e["provider"].trim();
+        if (typeof e["year"] === "string" && e["year"].trim()) item.year = e["year"].trim();
+        if (typeof e["details"] === "string" && e["details"].trim()) item.details = e["details"].trim();
+        return item;
+      })
+      .filter((x): x is CvProfessionalDevelopmentItem => x !== null);
+  })();
 
   const optimizedCv: OptimizedCv = {
     candidateName,
@@ -234,7 +261,7 @@ function normalize(raw: unknown): OptimizationResult {
     experience,
     skills,
     projects,
-    awards,
+    professionalDevelopment,
   };
 
   return {
