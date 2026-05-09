@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   UploadCloud, FileText, CheckCircle2, AlertCircle,
   RefreshCw, Download, ChevronRight, X, Loader2,
-  FileStack, File,
+  FileStack, File, ArrowLeft,
 } from "lucide-react";
 import { useOptimizeCv } from "@workspace/api-client-react";
 import { toast } from "sonner";
@@ -41,17 +41,11 @@ function Gauge({ value }: { value: number }) {
       <svg viewBox="0 0 128 72" className="w-full h-full overflow-visible">
         <path
           d={`M ${cx - r},${cy} A ${r},${r} 0 0 1 ${cx + r},${cy}`}
-          fill="none"
-          stroke="hsl(var(--muted))"
-          strokeWidth="10"
-          strokeLinecap="round"
+          fill="none" stroke="hsl(var(--muted))" strokeWidth="10" strokeLinecap="round"
         />
         <path
           d={`M ${cx - r},${cy} A ${r},${r} 0 0 1 ${cx + r},${cy}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="10"
-          strokeLinecap="round"
+          fill="none" stroke="currentColor" strokeWidth="10" strokeLinecap="round"
           strokeDasharray={`${dash} ${gap}`}
           className="text-foreground transition-all duration-700"
         />
@@ -80,13 +74,13 @@ const FORMAT_OPTIONS: { value: CvFormat; label: string; sub: string; Icon: React
   {
     value: "one-page",
     label: "One Page",
-    sub: "Ideal for most roles — tight, scannable, recruiter-friendly",
+    sub: "Compact layout — all roles kept, writing tightened. Best for most applications.",
     Icon: File,
   },
   {
     value: "standard",
     label: "Standard",
-    sub: "No page limit — full detail for senior, academic, or technical roles",
+    sub: "Full detail, no page limit — ideal for senior, technical, or academic roles.",
     Icon: FileStack,
   },
 ];
@@ -107,14 +101,8 @@ export default function Home() {
 
   const handleFile = (file: File) => {
     setFileError("");
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setFileError("Please upload a PDF or DOCX file.");
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError("File must be smaller than 5MB.");
-      return;
-    }
+    if (!ACCEPTED_TYPES.includes(file.type)) { setFileError("Please upload a PDF or DOCX file."); return; }
+    if (file.size > MAX_FILE_SIZE) { setFileError("File must be smaller than 5MB."); return; }
     setCvFile(file);
   };
 
@@ -200,6 +188,7 @@ export default function Home() {
       <main className="relative z-10 flex-grow w-full max-w-4xl mx-auto px-4 pb-20 flex flex-col items-center">
         <AnimatePresence mode="wait">
 
+          {/* ── IDLE ── */}
           {phase === "idle" && (
             <motion.div
               key="idle"
@@ -229,9 +218,7 @@ export default function Home() {
                           <p className="font-medium text-foreground mb-1">Click or drag file to upload</p>
                           <p className="text-sm text-muted-foreground">PDF or DOCX up to 5MB</p>
                           <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
+                            type="file" ref={fileInputRef} className="hidden"
                             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                             onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
                           />
@@ -289,8 +276,7 @@ export default function Home() {
                           <div className="space-y-2">
                             <Label htmlFor="url">Posting URL (HTTPS only)</Label>
                             <Input
-                              id="url"
-                              type="url"
+                              id="url" type="url"
                               placeholder="https://company.com/careers/job"
                               value={jdUrl}
                               className={jdError && jdMode === "url" ? "border-destructive" : ""}
@@ -323,19 +309,14 @@ export default function Home() {
                         key={value}
                         onClick={() => setCvFormat(value)}
                         className={`flex items-start gap-4 rounded-xl border p-5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30
-                          ${active
-                            ? "border-foreground bg-foreground/5 shadow-sm"
-                            : "border-border bg-background hover:border-foreground/40 hover:bg-muted/30"
-                          }`}
+                          ${active ? "border-foreground bg-foreground/5 shadow-sm" : "border-border bg-background hover:border-foreground/40 hover:bg-muted/30"}`}
                       >
                         <Icon className={`w-6 h-6 mt-0.5 flex-shrink-0 ${active ? "text-foreground" : "text-muted-foreground"}`} />
                         <div>
                           <p className={`font-semibold text-base leading-snug ${active ? "text-foreground" : "text-muted-foreground"}`}>{label}</p>
                           <p className="text-sm text-muted-foreground mt-0.5">{sub}</p>
                         </div>
-                        <div className={`ml-auto mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors
-                          ${active ? "border-foreground bg-foreground" : "border-muted-foreground"}`}
-                        />
+                        <div className={`ml-auto mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors ${active ? "border-foreground bg-foreground" : "border-muted-foreground"}`} />
                       </button>
                     );
                   })}
@@ -369,6 +350,7 @@ export default function Home() {
             </motion.div>
           )}
 
+          {/* ── PROCESSING ── */}
           {phase === "processing" && (
             <motion.div
               key="processing"
@@ -379,7 +361,6 @@ export default function Home() {
             >
               <Loader2 className="w-12 h-12 text-foreground animate-spin mb-8" />
               <h2 className="text-2xl font-serif mb-12">Crafting your tailored response</h2>
-
               <div className="w-full relative">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-muted -translate-y-1/2 rounded-full overflow-hidden">
                   <motion.div
@@ -409,6 +390,7 @@ export default function Home() {
             </motion.div>
           )}
 
+          {/* ── ERROR ── */}
           {phase === "error" && (
             <motion.div
               key="error"
@@ -426,12 +408,17 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex justify-center gap-4">
-                <Button variant="outline" onClick={handleReset}>Start Over</Button>
-                <Button onClick={handleOptimize}>Try Again <RefreshCw className="w-4 h-4 ml-2" /></Button>
+                <Button variant="outline" onClick={handleReset}>
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                </Button>
+                <Button onClick={handleOptimize}>
+                  Try Again <RefreshCw className="w-4 h-4 ml-2" />
+                </Button>
               </div>
             </motion.div>
           )}
 
+          {/* ── SUCCESS ── */}
           {phase === "success" && optimizeMutation.data && (
             <motion.div
               key="success"
@@ -439,14 +426,27 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="w-full space-y-8"
             >
-              {(optimizeMutation.data.candidateName || optimizeMutation.data.jobTitle) && (
-                <div className="text-center mb-8 pb-8 border-b border-border">
-                  <h2 className="text-3xl font-serif mb-2">{optimizeMutation.data.candidateName || "Candidate"}</h2>
-                  {optimizeMutation.data.jobTitle && (
-                    <p className="text-xl text-muted-foreground">for {optimizeMutation.data.jobTitle}</p>
-                  )}
-                </div>
-              )}
+              {/* Back button + title */}
+              <div className="flex items-start gap-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleReset}
+                  className="text-muted-foreground hover:text-foreground mt-1 flex-shrink-0"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+                </Button>
+                {(optimizeMutation.data.candidateName || optimizeMutation.data.jobTitle) && (
+                  <div className="flex-grow text-center pr-16">
+                    <h2 className="text-3xl font-serif mb-1">{optimizeMutation.data.candidateName || "Candidate"}</h2>
+                    {optimizeMutation.data.jobTitle && (
+                      <p className="text-lg text-muted-foreground">for {optimizeMutation.data.jobTitle}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-border" />
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Score */}
@@ -514,6 +514,7 @@ export default function Home() {
                     </CardContent>
                   </Card>
 
+                  {/* Downloads */}
                   <Card className="border-border shadow-sm bg-muted/20">
                     <CardHeader>
                       <CardTitle className="font-serif text-xl">Your Documents</CardTitle>
@@ -539,12 +540,6 @@ export default function Home() {
                       ))}
                     </CardContent>
                   </Card>
-
-                  <div className="flex justify-end">
-                    <Button variant="ghost" onClick={handleReset} className="text-muted-foreground">
-                      <RefreshCw className="w-4 h-4 mr-2" /> Start Over
-                    </Button>
-                  </div>
                 </div>
               </div>
             </motion.div>

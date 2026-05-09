@@ -74,29 +74,30 @@ export interface OptimizationResult {
   };
 }
 
-const SYSTEM_PROMPT = `You are an expert career coach and ATS (Applicant Tracking System) optimization specialist. You rewrite CVs to maximize alignment with a specific job description while preserving the candidate's truthful experience. Never fabricate facts, employers, dates, or credentials. You may rephrase and reorder existing content, surface relevant skills the candidate already demonstrates, and adopt the language of the target role.
+const SYSTEM_PROMPT = `You are a senior career coach and ATS optimization specialist. You rewrite CVs to maximize both ATS keyword matching and genuine appeal to the hiring company — considering their industry, culture, values, and what they actually care about. You preserve every truthful fact from the candidate's CV; you never fabricate employers, dates, credentials, or achievements. You may rephrase, reorder, and sharpen existing content, and surface skills the candidate demonstrably has.
 
-You ALWAYS respond with a single JSON object that exactly matches the requested schema. No markdown, no commentary, no code fences.`;
+You ALWAYS respond with a single JSON object exactly matching the requested schema. No markdown, no commentary, no code fences.`;
 
 function buildUserPrompt(cvText: string, jdText: string, format: "one-page" | "standard"): string {
   const formatInstructions =
     format === "one-page"
-      ? `CV FORMAT: ONE PAGE — content must fit on a single page.
-   - summary: 2 tight sentences max.
-   - skills: 2-3 categories, items comma-separated on one line each.
-   - experience: max 2-3 bullets per role (most impactful only). Omit roles older than 10 years if needed.
-   - education: 0-1 detail bullets per entry.
-   - projects: 0-2 projects, 1-2 bullets each.
-   - professionalDevelopment: 0-3 items, no details field.`
-      : `CV FORMAT: STANDARD (no page limit) — include full detail.
-   - summary: 2-3 sentences.
-   - skills: 2-5 categories.
-   - experience: 3-5 bullets per role.
-   - education: 0-3 detail bullets per entry.
-   - projects: 0-4 projects, 1-3 bullets each.
-   - professionalDevelopment: 0-8 items.`;
+      ? `CV FORMAT: ONE PAGE (compact layout, not truncated content)
+   IMPORTANT: Do NOT omit any real role, employer, or credential from the candidate's history. Achieve compactness through concise writing, not deletion.
+   - summary: Exactly 2 crisp sentences (40–60 words). Role-title phrase + 2 key differentiators + value proposition.
+   - skills: 2–3 categories, each ≤6 items, comma-separated on one line.
+   - experience: Keep ALL roles. Write 2 tight, high-impact bullets per role (1 line each, verb + metric + result). For roles >10 years ago that are clearly irrelevant, reduce to 1 bullet or omit bullets only — never omit the role itself.
+   - education: Institution, degree, dates only. 0 detail bullets.
+   - projects: 0–2 most relevant projects, 1 bullet each.
+   - professionalDevelopment: 0–3 items, no details field.`
+      : `CV FORMAT: STANDARD (no page limit — include full professional detail)
+   - summary: 2–3 sentences (60–100 words). Open with a role-anchored statement, highlight 2–3 quantified differentiators aligned with the JD, close with a concise value proposition.
+   - skills: 2–5 categories, each with 4–8 items. Mirror JD terminology where the candidate genuinely has the skill.
+   - experience: Keep ALL roles. Write 3–5 achievement bullets per role, one line each: action verb → specific contribution → quantified result (use the original CV's numbers; if no number given, describe scope). For roles >10 years ago and clearly unrelated, 1–2 bullets suffice.
+   - education: Institution, degree, field, dates, 0–2 notable detail bullets (GPA if ≥3.5, honors, relevant thesis).
+   - projects: 0–4 projects, 2–3 bullets each.
+   - professionalDevelopment: 0–8 items with optional provider, year, and one-line details.`;
 
-  return `You will be given a candidate's CV and a target job description. Optimize the CV for ATS alignment with the JD and write a tailored cover letter.
+  return `You will optimize a candidate's CV against a job description, tailoring it to the specific company and role.
 
 # Job Description
 """
@@ -108,29 +109,51 @@ ${jdText.slice(0, 6000)}
 ${cvText.slice(0, 8000)}
 """
 
-# Instructions
+# Step-by-step Instructions
 
-1. Extract the candidate's real name from the CV. If unclear, use "Candidate".
-2. Extract contact info from the CV (email, phone, location, LinkedIn URL, personal website). Omit fields you cannot find — never invent contact info.
-3. Identify the job title from the JD.
-4. Rewrite the CV using ATS-optimized language: incorporate JD keywords, quantify impact where the original implies it, use strong action verbs, mirror the JD's terminology where the candidate's real experience supports it.
-5. Organize the CV in this ATS-optimized order (omit sections the candidate has no content for; never invent content):
+## STEP 1 — Analyze the company & role
+Before writing anything, infer from the JD:
+- Company type: startup / scale-up / enterprise / agency / non-profit / government
+- Industry: e.g. fintech, healthcare, e-commerce, SaaS, consulting, manufacturing
+- Culture signals: e.g. data-driven, innovation-first, collaborative, high-autonomy, process-oriented, mission-driven
+- Values: look for repeated phrases ("move fast", "customer obsessed", "rigorous", "inclusive", "ownership")
+- What they care about most in this role: leadership, technical depth, client-facing skills, cross-functional collaboration, etc.
+Use these insights to calibrate tone and emphasis throughout the CV — e.g. startups → impact/velocity language; enterprise → governance/scalability; mission-driven → alignment with purpose.
+
+## STEP 2 — Extract candidate facts
+1. Real name (or "Candidate" if unclear).
+2. Contact info: email, phone, location, LinkedIn URL, personal website. Never invent — only include what's in the CV.
+3. Job title from the JD.
+
+## STEP 3 — Rewrite the CV
+4. Use ATS-optimized language: mirror JD keywords where the candidate's experience truthfully supports it. Use strong action verbs. Quantify impact using numbers already in the CV; never invent metrics.
+5. Apply company-culture tone throughout: bullet style, verb choice, and emphasis should feel native to the target company.
+6. Organize sections in this order (skip sections with no real content):
+   summary → skills → experience → education → projects → professionalDevelopment
+
    ${formatInstructions}
-   Section order: summary → skills → experience → education → projects → professionalDevelopment.
-   professionalDevelopment items: name (course title, certification, or award), optional provider (e.g. "Coursera", "AWS", "ACM"), optional year, optional one-line details. Include relevant courses, certifications, awards. If the candidate's CV does not mention any, infer plausible items matching their listed skills. Never fabricate brand-name credentials — if uncertain, prefer generic titles like "Advanced React Patterns".
-6. Compute an ATS match score:
-   - Target the 90-95 range. Push to 95+ only if the candidate truly matches; never above 98.
-   - breakdown: keywords (alignment with JD vocabulary, 0-100), experience (relevance of work history, 0-100), formatting (ATS-friendliness, 0-100; assume the rendered template is highly ATS-friendly so this is usually 90-100), completeness (presence of required CV sections, 0-100).
-   - The overall atsScore should be a weighted average that lands in 90-95 for a typical optimized CV.
-7. Write an optimization summary:
-   - topImprovements: exactly 3 short statements describing what you improved.
-   - missingKeywords: 4-8 JD terms that were weak/absent in the original CV (now incorporated where truthful).
-   - nextSteps: 3-5 concrete, actionable suggestions for the candidate (e.g. add a portfolio link, quantify a specific achievement, get a specific certification).
-8. Write a tailored cover letter:
-   - salutation (e.g. "Dear Hiring Team,").
-   - 3-4 paragraphs of body text. Concrete, confident, role-specific. Reference specific JD requirements and how the candidate meets them. Never fabricate.
-   - closing (e.g. "Sincerely,").
-   - signature: the candidate's name.
+
+   professionalDevelopment: each item has name (certification, course, or award), optional provider, optional year, optional one-line details. Include items mentioned in the CV first. If none found, suggest 1–3 plausible items that match skills the candidate already demonstrates. Never fabricate brand-name certifications; use generic titles when uncertain (e.g. "Advanced SQL for Analytics" rather than "Mode Analytics Certification").
+
+## STEP 4 — ATS score
+7. Compute:
+   - atsScore: overall weighted score, target 90–95 for a well-matched CV; never exceed 98.
+   - breakdown.keywords: JD vocabulary alignment (0–100)
+   - breakdown.experience: work history relevance (0–100)
+   - breakdown.formatting: ATS-friendliness of the template — usually 92–98 since our template is clean
+   - breakdown.completeness: all expected sections present (0–100)
+
+## STEP 5 — Optimization summary
+8. topImprovements: exactly 3 short statements of what you improved.
+   missingKeywords: 4–8 JD terms weak/absent in the original (now woven in where truthful).
+   nextSteps: 3–5 concrete, actionable suggestions for the candidate.
+
+## STEP 6 — Cover letter
+9. Write a tailored cover letter:
+   - salutation (e.g. "Dear Hiring Team,")
+   - 3–4 paragraphs: confident, specific, role-and-company-anchored. Name the company's stated values or mission where clearly inferable from the JD. Reference how the candidate's real achievements meet the specific requirements.
+   - closing (e.g. "Sincerely,")
+   - signature: candidate's name
 
 Respond with ONLY a JSON object matching this exact shape:
 

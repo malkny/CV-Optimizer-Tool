@@ -13,6 +13,7 @@ import {
 import type { OptimizedCv } from "./optimize";
 import type { CoverLetterContent, CvFormat } from "./generatePdf";
 
+// Half-points (docx unit): name=28 (14pt), section=24 (12pt), entry=22 (11pt), body=20 (10pt), contact=18 (9pt)
 const TEXT_HEX = "111111";
 const MUTED_HEX = "555555";
 const RULE_HEX = "AAAAAA";
@@ -34,27 +35,27 @@ type Cfg = DocxConfig;
 
 const FORMAT_CONFIG: Record<CvFormat, DocxConfig> = {
   "one-page": {
-    nameSize: 36,
-    sectionSize: 19,
-    bodySize: 18,
-    entrySize: 19,
-    contactSize: 17,
-    spacingBefore: 140,
+    nameSize: 28,       // 14pt
+    sectionSize: 24,    // 12pt
+    bodySize: 20,       // 10pt
+    entrySize: 22,      // 11pt
+    contactSize: 18,    // 9pt
+    spacingBefore: 100,
     spacingAfter: 60,
     entryBefore: 60,
-    bulletAfter: 40,
+    bulletAfter: 30,
     margin: { top: 540, bottom: 540, left: 720, right: 720 },
   },
   standard: {
-    nameSize: 44,
-    sectionSize: 22,
-    bodySize: 22,
-    entrySize: 22,
-    contactSize: 20,
-    spacingBefore: 240,
-    spacingAfter: 100,
+    nameSize: 28,       // 14pt
+    sectionSize: 24,    // 12pt
+    bodySize: 20,       // 10pt
+    entrySize: 22,      // 11pt
+    contactSize: 18,    // 9pt
+    spacingBefore: 180,
+    spacingAfter: 80,
     entryBefore: 80,
-    bulletAfter: 60,
+    bulletAfter: 50,
     margin: { top: 720, bottom: 720, left: 900, right: 900 },
   },
 };
@@ -70,7 +71,7 @@ function titleParagraph(name: string, cfg: Cfg): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.TITLE,
     alignment: AlignmentType.CENTER,
-    spacing: { after: 80 },
+    spacing: { after: 60 },
     children: [new TextRun({ text: name, bold: true, size: cfg.nameSize, color: TEXT_HEX })],
   });
 }
@@ -80,7 +81,7 @@ function sectionHeading(label: string, cfg: Cfg): Paragraph {
     heading: HeadingLevel.HEADING_1,
     spacing: { before: cfg.spacingBefore, after: cfg.spacingAfter },
     border: {
-      bottom: { color: RULE_HEX, space: 1, style: BorderStyle.SINGLE, size: 6 },
+      bottom: { color: RULE_HEX, space: 1, style: BorderStyle.SINGLE, size: 4 },
     },
     children: [
       new TextRun({
@@ -88,7 +89,7 @@ function sectionHeading(label: string, cfg: Cfg): Paragraph {
         bold: true,
         size: cfg.sectionSize,
         color: TEXT_HEX,
-        characterSpacing: 30,
+        characterSpacing: 25,
       }),
     ],
   });
@@ -97,7 +98,7 @@ function sectionHeading(label: string, cfg: Cfg): Paragraph {
 function entryHeading(label: string, cfg: Cfg): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
-    spacing: { before: cfg.entryBefore, after: 40 },
+    spacing: { before: cfg.entryBefore, after: 35 },
     children: [new TextRun({ text: label, bold: true, size: cfg.entrySize, color: TEXT_HEX })],
   });
 }
@@ -106,7 +107,7 @@ function leftRightHeading(left: string, right: string, cfg: Cfg): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
     tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-    spacing: { before: cfg.entryBefore, after: 40 },
+    spacing: { before: cfg.entryBefore, after: 35 },
     children: [
       new TextRun({ text: left, bold: true, size: cfg.entrySize, color: TEXT_HEX }),
       new TextRun({ text: `\t${right}`, size: cfg.bodySize, color: MUTED_HEX }),
@@ -117,7 +118,7 @@ function leftRightHeading(left: string, right: string, cfg: Cfg): Paragraph {
 function bulletParagraph(text: string, cfg: Cfg): Paragraph {
   return new Paragraph({
     spacing: { after: cfg.bulletAfter },
-    indent: { left: 360, hanging: 220 },
+    indent: { left: 320, hanging: 200 },
     children: [
       new TextRun({ text: "•  ", size: cfg.bodySize }),
       new TextRun({ text, size: cfg.bodySize }),
@@ -163,17 +164,15 @@ function headerBlock(name: string, contact: OptimizedCv["contact"], cfg: Cfg): P
     out.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 60 },
-        children: [new TextRun({ text: bits.join("  •  "), size: cfg.contactSize, color: MUTED_HEX })],
+        spacing: { after: 50 },
+        children: [new TextRun({ text: bits.join("  |  "), size: cfg.contactSize, color: MUTED_HEX })],
       }),
     );
   }
   out.push(
     new Paragraph({
-      spacing: { after: 120 },
-      border: {
-        bottom: { color: TEXT_HEX, space: 1, style: BorderStyle.SINGLE, size: 8 },
-      },
+      spacing: { after: 80 },
+      border: { bottom: { color: TEXT_HEX, space: 1, style: BorderStyle.SINGLE, size: 8 } },
       children: [new TextRun({ text: "" })],
     }),
   );
@@ -182,12 +181,10 @@ function headerBlock(name: string, contact: OptimizedCv["contact"], cfg: Cfg): P
 
 const buildStyles = (cfg: Cfg) => ({
   default: {
-    document: {
-      run: { font: "Calibri", size: cfg.bodySize, color: TEXT_HEX },
-    },
+    document: { run: { font: "Calibri", size: cfg.bodySize, color: TEXT_HEX } },
     title: {
       run: { font: "Calibri", size: cfg.nameSize, bold: true, color: TEXT_HEX },
-      paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 80 } },
+      paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 60 } },
     },
     heading1: {
       run: { font: "Calibri", size: cfg.sectionSize, bold: true, color: TEXT_HEX },
@@ -195,7 +192,7 @@ const buildStyles = (cfg: Cfg) => ({
     },
     heading2: {
       run: { font: "Calibri", size: cfg.entrySize, bold: true, color: TEXT_HEX },
-      paragraph: { spacing: { before: cfg.entryBefore, after: 40 } },
+      paragraph: { spacing: { before: cfg.entryBefore, after: 35 } },
     },
   },
 });
@@ -207,13 +204,13 @@ export async function generateCvDocx(cv: OptimizedCv, format: CvFormat = "standa
 
   // 1. Summary
   if (cv.summary) {
-    children.push(sectionHeading("Summary", cfg));
-    children.push(plainParagraph(cv.summary, cfg));
+    children.push(sectionHeading("Professional Summary", cfg));
+    children.push(plainParagraph(cv.summary, cfg, { alignment: AlignmentType.JUSTIFIED }));
   }
 
   // 2. Skills
   if (cv.skills.length > 0) {
-    children.push(sectionHeading("Skills", cfg));
+    children.push(sectionHeading("Core Skills", cfg));
     for (const s of cv.skills) {
       children.push(
         new Paragraph({
@@ -229,17 +226,13 @@ export async function generateCvDocx(cv: OptimizedCv, format: CvFormat = "standa
 
   // 3. Experience
   if (cv.experience.length > 0) {
-    children.push(sectionHeading("Experience", cfg));
+    children.push(sectionHeading("Professional Experience", cfg));
     for (const x of cv.experience) {
-      const left = [x.company, x.location].filter(Boolean).join(", ");
+      const left = [x.company, x.location].filter(Boolean).join(" · ");
       const right = dateRange(x.startDate, x.endDate);
       children.push(right ? leftRightHeading(left, right, cfg) : entryHeading(left, cfg));
-      if (x.title) {
-        children.push(plainParagraph(x.title, cfg, { italics: true, after: 40 }));
-      }
-      for (const b of x.bullets) {
-        children.push(bulletParagraph(b, cfg));
-      }
+      if (x.title) children.push(plainParagraph(x.title, cfg, { italics: true, after: 30 }));
+      for (const b of x.bullets) children.push(bulletParagraph(b, cfg));
     }
   }
 
@@ -247,16 +240,12 @@ export async function generateCvDocx(cv: OptimizedCv, format: CvFormat = "standa
   if (cv.education.length > 0) {
     children.push(sectionHeading("Education", cfg));
     for (const e of cv.education) {
-      const left = [e.institution, e.location].filter(Boolean).join(", ");
+      const left = [e.institution, e.location].filter(Boolean).join(" · ");
       const right = dateRange(e.startDate, e.endDate);
       children.push(right ? leftRightHeading(left, right, cfg) : entryHeading(left, cfg));
-      const degreeLine = [e.degree, e.field].filter(Boolean).join(", ");
-      if (degreeLine) {
-        children.push(plainParagraph(degreeLine, cfg, { italics: true, after: 40 }));
-      }
-      for (const b of e.details) {
-        children.push(bulletParagraph(b, cfg));
-      }
+      const deg = [e.degree, e.field].filter(Boolean).join(", ");
+      if (deg) children.push(plainParagraph(deg, cfg, { italics: true, after: 30 }));
+      for (const b of e.details) children.push(bulletParagraph(b, cfg));
     }
   }
 
@@ -264,11 +253,9 @@ export async function generateCvDocx(cv: OptimizedCv, format: CvFormat = "standa
   if (cv.projects.length > 0) {
     children.push(sectionHeading("Projects", cfg));
     for (const p of cv.projects) {
-      const headline = p.context ? `${p.name} — ${p.context}` : p.name;
+      const headline = p.context ? `${p.name}  ·  ${p.context}` : p.name;
       children.push(entryHeading(headline, cfg));
-      for (const b of p.bullets) {
-        children.push(bulletParagraph(b, cfg));
-      }
+      for (const b of p.bullets) children.push(bulletParagraph(b, cfg));
     }
   }
 
@@ -277,11 +264,9 @@ export async function generateCvDocx(cv: OptimizedCv, format: CvFormat = "standa
     children.push(sectionHeading("Professional Development", cfg));
     for (const item of cv.professionalDevelopment) {
       const meta = [item.provider, item.year].filter(Boolean).join(" · ");
-      const headline = meta ? `${item.name} — ${meta}` : item.name;
+      const headline = meta ? `${item.name}  ·  ${meta}` : item.name;
       children.push(entryHeading(headline, cfg));
-      if (item.details) {
-        children.push(plainParagraph(item.details, cfg));
-      }
+      if (item.details) children.push(plainParagraph(item.details, cfg));
     }
   }
 
@@ -289,17 +274,12 @@ export async function generateCvDocx(cv: OptimizedCv, format: CvFormat = "standa
     creator: cv.candidateName,
     title: `${cv.candidateName} — Résumé`,
     styles: buildStyles(cfg),
-    sections: [
-      {
-        properties: {
-          page: {
-            size: { orientation: PageOrientation.PORTRAIT },
-            margin: cfg.margin,
-          },
-        },
-        children,
+    sections: [{
+      properties: {
+        page: { size: { orientation: PageOrientation.PORTRAIT }, margin: cfg.margin },
       },
-    ],
+      children,
+    }],
   });
 
   return Packer.toBuffer(doc) as Promise<Buffer>;
@@ -310,20 +290,16 @@ export async function generateCoverLetterDocx(content: CoverLetterContent): Prom
   const children: Paragraph[] = [];
   children.push(...headerBlock(content.candidateName, content.contact, cfg));
 
-  const today = new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   children.push(plainParagraph(today, cfg, { color: MUTED_HEX, after: 120 }));
 
   if (content.jobTitle) {
     children.push(entryHeading(`Re: ${content.jobTitle}`, cfg));
   }
 
-  children.push(plainParagraph(content.salutation, cfg, { after: 160 }));
+  children.push(plainParagraph(content.salutation, cfg, { after: 140 }));
   for (const p of content.paragraphs) {
-    children.push(plainParagraph(p, cfg, { after: 160 }));
+    children.push(plainParagraph(p, cfg, { after: 140, alignment: AlignmentType.JUSTIFIED }));
   }
   children.push(plainParagraph(content.closing, cfg, { after: 80 }));
   children.push(plainParagraph(content.signature, cfg, { bold: true }));
@@ -332,17 +308,12 @@ export async function generateCoverLetterDocx(content: CoverLetterContent): Prom
     creator: content.candidateName,
     title: `${content.candidateName} — Cover Letter`,
     styles: buildStyles(cfg),
-    sections: [
-      {
-        properties: {
-          page: {
-            size: { orientation: PageOrientation.PORTRAIT },
-            margin: cfg.margin,
-          },
-        },
-        children,
+    sections: [{
+      properties: {
+        page: { size: { orientation: PageOrientation.PORTRAIT }, margin: cfg.margin },
       },
-    ],
+      children,
+    }],
   });
 
   return Packer.toBuffer(doc) as Promise<Buffer>;
