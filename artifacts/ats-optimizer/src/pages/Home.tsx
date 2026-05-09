@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   UploadCloud, FileText, CheckCircle2, AlertCircle,
   RefreshCw, Download, ChevronRight, X, Loader2,
-  FileStack, File, ArrowLeft,
+  FileStack, File, ArrowLeft, Building2,
 } from "lucide-react";
 import { useOptimizeCv } from "@workspace/api-client-react";
 import { toast } from "sonner";
@@ -24,8 +24,9 @@ const ACCEPTED_TYPES = [
 
 type Phase = "idle" | "processing" | "success" | "error";
 type CvFormat = "one-page" | "standard";
+type JdMode = "text" | "url" | "company";
 
-const PROCESSING_STEPS = ["Parsing CV", "Analyzing JD", "Optimizing Content", "Generating Files", "Complete"];
+const PROCESSING_STEPS = ["Parsing CV", "Analyzing Source", "Optimizing Content", "Generating Files", "Complete"];
 
 function Gauge({ value }: { value: number }) {
   const pct = value / 100;
@@ -74,7 +75,7 @@ const FORMAT_OPTIONS: { value: CvFormat; label: string; sub: string; Icon: React
   {
     value: "one-page",
     label: "One Page",
-    sub: "Compact layout — all roles kept, writing tightened. Best for most applications.",
+    sub: "Full content, tight writing — every role and bullet kept, layout compressed to fill one page.",
     Icon: File,
   },
   {
@@ -88,9 +89,10 @@ const FORMAT_OPTIONS: { value: CvFormat; label: string; sub: string; Icon: React
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [cvFile, setCvFile] = useState<File | null>(null);
-  const [jdMode, setJdMode] = useState<"text" | "url">("text");
+  const [jdMode, setJdMode] = useState<JdMode>("text");
   const [jdText, setJdText] = useState("");
   const [jdUrl, setJdUrl] = useState("");
+  const [companyUrl, setCompanyUrl] = useState("");
   const [cvFormat, setCvFormat] = useState<CvFormat>("standard");
   const [fileError, setFileError] = useState("");
   const [jdError, setJdError] = useState("");
@@ -118,12 +120,18 @@ export default function Home() {
       if (jdText.length < 50) { setJdError("Job description must be at least 50 characters."); valid = false; }
       else if (jdText.length > 5000) { setJdError("Job description cannot exceed 5000 characters."); valid = false; }
       else setJdError("");
-    } else {
+    } else if (jdMode === "url") {
       try {
         new URL(jdUrl);
         if (!jdUrl.startsWith("https://")) { setJdError("URL must use HTTPS."); valid = false; }
         else setJdError("");
       } catch { setJdError("Please enter a valid URL."); valid = false; }
+    } else {
+      try {
+        new URL(companyUrl);
+        if (!companyUrl.startsWith("https://")) { setJdError("URL must use HTTPS."); valid = false; }
+        else setJdError("");
+      } catch { setJdError("Please enter a valid company website URL."); valid = false; }
     }
     return valid;
   };
@@ -140,8 +148,13 @@ export default function Home() {
       });
     }, 4000);
 
+    const payload =
+      jdMode === "text" ? { cv: cvFile!, format: cvFormat, jdText } :
+      jdMode === "url" ? { cv: cvFile!, format: cvFormat, jdUrl } :
+      { cv: cvFile!, format: cvFormat, companyUrl };
+
     optimizeMutation.mutate(
-      { data: { cv: cvFile!, format: cvFormat, ...(jdMode === "text" ? { jdText } : { jdUrl }) } },
+      { data: payload },
       {
         onSuccess: () => {
           clearInterval(stepInterval);
@@ -164,10 +177,17 @@ export default function Home() {
     setCvFile(null);
     setJdText("");
     setJdUrl("");
+    setCompanyUrl("");
     optimizeMutation.reset();
   };
 
-  const canSubmit = !!cvFile && (jdMode === "text" ? jdText.trim().length >= 50 : !!jdUrl.trim());
+  const canSubmit = !!cvFile && (
+    jdMode === "text" ? jdText.trim().length >= 50 :
+    jdMode === "url" ? !!jdUrl.trim() :
+    !!companyUrl.trim()
+  );
+
+  const submitLabel = jdMode === "company" ? "Align to Company" : "Optimize Résumé";
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background relative overflow-hidden">
@@ -181,7 +201,7 @@ export default function Home() {
           ATS CV Optimizer
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-medium">
-          A precision tool for serious candidates. Align your résumé with the exact requirements of your target role.
+          A precision tool for serious candidates. Align your résumé with a target role or company culture.
         </p>
       </header>
 
@@ -246,19 +266,24 @@ export default function Home() {
                   </Card>
                 </div>
 
-                {/* Job Description */}
+                {/* Job Description / Company */}
                 <div className="space-y-4">
                   <h2 className="text-xl font-serif font-medium flex items-center gap-2">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-foreground/10 text-foreground text-sm font-sans">2</span>
-                    Job Description
+                    Target
                   </h2>
                   <Card className="border-border shadow-sm h-full flex flex-col">
                     <CardContent className="p-6 flex-grow flex flex-col">
-                      <Tabs value={jdMode} onValueChange={(v) => setJdMode(v as "text" | "url")} className="w-full flex-grow flex flex-col">
-                        <TabsList className="grid w-full grid-cols-2 mb-6">
-                          <TabsTrigger value="text">Paste Text</TabsTrigger>
-                          <TabsTrigger value="url">From URL</TabsTrigger>
+                      <Tabs value={jdMode} onValueChange={(v) => { setJdMode(v as JdMode); setJdError(""); }} className="w-full flex-grow flex flex-col">
+                        <TabsList className="grid w-full grid-cols-3 mb-6">
+                          <TabsTrigger value="text">Paste JD</TabsTrigger>
+                          <TabsTrigger value="url">JD URL</TabsTrigger>
+                          <TabsTrigger value="company" className="flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5" /> Company
+                          </TabsTrigger>
                         </TabsList>
+
+                        {/* Paste JD */}
                         <TabsContent value="text" className="flex-grow flex flex-col m-0 data-[state=inactive]:hidden">
                           <div className="relative flex-grow flex flex-col">
                             <Textarea
@@ -272,16 +297,45 @@ export default function Home() {
                             </div>
                           </div>
                         </TabsContent>
+
+                        {/* JD URL */}
                         <TabsContent value="url" className="flex-grow m-0 data-[state=inactive]:hidden">
                           <div className="space-y-2">
-                            <Label htmlFor="url">Posting URL (HTTPS only)</Label>
+                            <Label htmlFor="jd-url">Job Posting URL (HTTPS only)</Label>
                             <Input
-                              id="url" type="url"
+                              id="jd-url" type="url"
                               placeholder="https://company.com/careers/job"
                               value={jdUrl}
                               className={jdError && jdMode === "url" ? "border-destructive" : ""}
                               onChange={(e) => { setJdUrl(e.target.value); setJdError(""); }}
                             />
+                            <p className="text-xs text-muted-foreground">
+                              We'll fetch the page and extract the job description automatically.
+                            </p>
+                          </div>
+                        </TabsContent>
+
+                        {/* Company Website */}
+                        <TabsContent value="company" className="flex-grow m-0 data-[state=inactive]:hidden">
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="company-url">Company Website URL (HTTPS only)</Label>
+                              <Input
+                                id="company-url" type="url"
+                                placeholder="https://company.com"
+                                value={companyUrl}
+                                className={jdError && jdMode === "company" ? "border-destructive" : ""}
+                                onChange={(e) => { setCompanyUrl(e.target.value); setJdError(""); }}
+                              />
+                            </div>
+                            <div className="rounded-lg bg-muted/40 border border-border p-4 space-y-2">
+                              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                                <Building2 className="w-4 h-4" /> Speculative / General Application
+                              </p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                No job posting needed. We'll analyze the company's website to understand their industry, culture, and values — then tailor your CV for a professional general application. ATS-optimized throughout.
+                              </p>
+                            </div>
                           </div>
                         </TabsContent>
                       </Tabs>
@@ -333,7 +387,11 @@ export default function Home() {
                       if (jdMode === "text") {
                         if (!jdText.trim()) missing.push("paste the job description");
                         else if (jdText.trim().length < 50) missing.push(`add ${50 - jdText.trim().length} more characters to the job description`);
-                      } else if (!jdUrl.trim()) missing.push("paste a job description URL");
+                      } else if (jdMode === "url") {
+                        if (!jdUrl.trim()) missing.push("paste a job description URL");
+                      } else {
+                        if (!companyUrl.trim()) missing.push("paste a company website URL");
+                      }
                       return missing.length > 0 ? `To continue, ${missing.join(" and ")}.` : null;
                     })()}
                   </p>
@@ -344,7 +402,7 @@ export default function Home() {
                   onClick={handleOptimize}
                   disabled={!canSubmit}
                 >
-                  Optimize Résumé <ChevronRight className="ml-2 w-5 h-5" />
+                  {submitLabel} <ChevronRight className="ml-2 w-5 h-5" />
                 </Button>
               </div>
             </motion.div>
@@ -360,7 +418,9 @@ export default function Home() {
               className="w-full max-w-2xl py-20 flex flex-col items-center justify-center text-center"
             >
               <Loader2 className="w-12 h-12 text-foreground animate-spin mb-8" />
-              <h2 className="text-2xl font-serif mb-12">Crafting your tailored response</h2>
+              <h2 className="text-2xl font-serif mb-12">
+                {jdMode === "company" ? "Analysing company and crafting your profile" : "Crafting your tailored response"}
+              </h2>
               <div className="w-full relative">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-muted -translate-y-1/2 rounded-full overflow-hidden">
                   <motion.div
@@ -440,7 +500,9 @@ export default function Home() {
                   <div className="flex-grow text-center pr-16">
                     <h2 className="text-3xl font-serif mb-1">{optimizeMutation.data.candidateName || "Candidate"}</h2>
                     {optimizeMutation.data.jobTitle && (
-                      <p className="text-lg text-muted-foreground">for {optimizeMutation.data.jobTitle}</p>
+                      <p className="text-lg text-muted-foreground">
+                        {jdMode === "company" ? `General application — ${optimizeMutation.data.jobTitle}` : `for ${optimizeMutation.data.jobTitle}`}
+                      </p>
                     )}
                   </div>
                 )}
@@ -453,7 +515,7 @@ export default function Home() {
                 <Card className="col-span-1 border-border shadow-sm flex flex-col">
                   <CardHeader className="text-center pb-0">
                     <CardTitle className="font-serif text-xl">ATS Match Score</CardTitle>
-                    <CardDescription>Target: 90–95</CardDescription>
+                    <CardDescription>{jdMode === "company" ? "Industry alignment" : "Target: 90–95"}</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-6 pb-8 flex-grow flex flex-col items-center justify-center border-b border-border/50">
                     <Gauge value={optimizeMutation.data.atsScore} />
@@ -488,7 +550,7 @@ export default function Home() {
                       </div>
                       <div>
                         <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4" /> Missing Keywords Added
+                          <AlertCircle className="w-4 h-4" /> {jdMode === "company" ? "Industry Keywords Added" : "Missing Keywords Added"}
                         </h4>
                         <div className="flex flex-wrap gap-2">
                           {optimizeMutation.data.summary.missingKeywords.map((kw, i) => (
@@ -524,8 +586,8 @@ export default function Home() {
                       {[
                         { href: optimizeMutation.data.downloads.cvPdf, label: "Optimized CV", sub: "PDF Format" },
                         { href: optimizeMutation.data.downloads.cvDocx, label: "Optimized CV", sub: "DOCX Format" },
-                        { href: optimizeMutation.data.downloads.coverLetterPdf, label: "Cover Letter", sub: "PDF Format" },
-                        { href: optimizeMutation.data.downloads.coverLetterDocx, label: "Cover Letter", sub: "DOCX Format" },
+                        { href: optimizeMutation.data.downloads.coverLetterPdf, label: jdMode === "company" ? "Speculative Cover Letter" : "Cover Letter", sub: "PDF Format" },
+                        { href: optimizeMutation.data.downloads.coverLetterDocx, label: jdMode === "company" ? "Speculative Cover Letter" : "Cover Letter", sub: "DOCX Format" },
                       ].map(({ href, label, sub }) => (
                         <a key={sub + label} href={href} download className="block">
                           <Button variant="outline" className="w-full justify-start h-auto py-4 px-4 bg-background">

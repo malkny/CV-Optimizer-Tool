@@ -33,6 +33,12 @@ export const OptimizeCvBody = zod.object({
     .enum(["one-page", "standard"])
     .optional()
     .describe("CV length format (one-page or standard\/unlimited)"),
+  companyUrl: zod
+    .string()
+    .optional()
+    .describe(
+      "Company website URL for speculative\/general application (provide instead of jdText\/jdUrl)",
+    ),
 });
 
 export const OptimizeCvResponse = zod.object({

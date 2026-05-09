@@ -56,6 +56,9 @@ paths:
                   type: string
                   enum: [one-page, standard]
                   description: CV length format (one-page or standard/unlimited)
+                companyUrl:
+                  type: string
+                  description: Company website URL for speculative/general application (provide instead of jdText/jdUrl)
               required:
                 - cv
       responses:

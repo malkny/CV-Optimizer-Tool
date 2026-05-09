@@ -16,4 +16,6 @@ export type OptimizeCvBody = {
   jdUrl?: string;
   /** CV length format (one-page or standard/unlimited) */
   format?: OptimizeCvBodyFormat;
+  /** Company website URL for speculative/general application (provide instead of jdText/jdUrl) */
+  companyUrl?: string;
 };

@@ -78,25 +78,54 @@ const SYSTEM_PROMPT = `You are a senior career coach and ATS optimization specia
 
 You ALWAYS respond with a single JSON object exactly matching the requested schema. No markdown, no commentary, no code fences.`;
 
-function buildUserPrompt(cvText: string, jdText: string, format: "one-page" | "standard"): string {
-  const formatInstructions =
-    format === "one-page"
-      ? `CV FORMAT: ONE PAGE (compact layout, not truncated content)
-   IMPORTANT: Do NOT omit any real role, employer, or credential from the candidate's history. Achieve compactness through concise writing, not deletion.
-   - summary: Exactly 2 crisp sentences (40–60 words). Role-title phrase + 2 key differentiators + value proposition.
-   - skills: 2–3 categories, each ≤6 items, comma-separated on one line.
-   - experience: Keep ALL roles. Write 2 tight, high-impact bullets per role (1 line each, verb + metric + result). For roles >10 years ago that are clearly irrelevant, reduce to 1 bullet or omit bullets only — never omit the role itself.
-   - education: Institution, degree, dates only. 0 detail bullets.
-   - projects: 0–2 most relevant projects, 1 bullet each.
-   - professionalDevelopment: 0–3 items, no details field.`
-      : `CV FORMAT: STANDARD (no page limit — include full professional detail)
-   - summary: 2–3 sentences (60–100 words). Open with a role-anchored statement, highlight 2–3 quantified differentiators aligned with the JD, close with a concise value proposition.
-   - skills: 2–5 categories, each with 4–8 items. Mirror JD terminology where the candidate genuinely has the skill.
-   - experience: Keep ALL roles. Write 3–5 achievement bullets per role, one line each: action verb → specific contribution → quantified result (use the original CV's numbers; if no number given, describe scope). For roles >10 years ago and clearly unrelated, 1–2 bullets suffice.
-   - education: Institution, degree, field, dates, 0–2 notable detail bullets (GPA if ≥3.5, honors, relevant thesis).
+function formatInstructions(format: "one-page" | "standard"): string {
+  if (format === "one-page") {
+    return `CV FORMAT: ONE PAGE — preserve every role, credential, and project from the original CV. Do NOT omit anything. Achieve density purely through tight writing.
+   - summary: 2 crisp sentences (40–55 words). Role title + 2 differentiators + value statement.
+   - skills: 3–4 categories, up to 8 items each on one line.
+   - experience: Keep EVERY role and EVERY bullet. Each bullet = 1 line max: action verb → specific contribution → quantified result. Strip filler words but keep all facts.
+   - education: Degree, institution, dates. Include detail bullets if they add value (GPA, honors).
+   - projects: All projects. 1–2 tight bullets each.
+   - professionalDevelopment: All items, no multi-line details (fold into one line).
+   Writing rule: if a bullet would be >15 words, tighten it — do not split or remove it.`;
+  }
+  return `CV FORMAT: STANDARD — no page limit. Include full professional detail.
+   - summary: 2–3 sentences (60–100 words). Role-anchored opener + 2–3 quantified differentiators aligned with the JD + value proposition.
+   - skills: 2–5 categories, 4–8 items each. Mirror JD terminology where truthfully applicable.
+   - experience: Keep ALL roles. 3–5 achievement bullets per role, one line each: action verb → contribution → quantified result. For roles >10 years ago and clearly unrelated, 1–2 bullets suffice.
+   - education: Institution, degree, field, dates. 0–2 notable details (GPA ≥3.5, honors, relevant thesis).
    - projects: 0–4 projects, 2–3 bullets each.
-   - professionalDevelopment: 0–8 items with optional provider, year, and one-line details.`;
+   - professionalDevelopment: 0–8 items, optional provider, year, one-line details.`;
+}
 
+const CV_JSON_SCHEMA = `{
+  "jobTitle": string,
+  "atsScore": number,
+  "breakdown": { "keywords": number, "experience": number, "formatting": number, "completeness": number },
+  "summary": {
+    "topImprovements": string[],
+    "missingKeywords": string[],
+    "nextSteps": string[]
+  },
+  "optimizedCv": {
+    "candidateName": string,
+    "contact": { "email"?: string, "phone"?: string, "location"?: string, "linkedin"?: string, "website"?: string },
+    "summary": string,
+    "skills": [{ "category": string, "items": string[] }],
+    "experience": [{ "company": string, "title": string, "location"?: string, "startDate"?: string, "endDate"?: string, "bullets": string[] }],
+    "education": [{ "institution": string, "degree": string, "field"?: string, "location"?: string, "startDate"?: string, "endDate"?: string, "details": string[] }],
+    "projects": [{ "name": string, "context"?: string, "bullets": string[] }],
+    "professionalDevelopment": [{ "name": string, "provider"?: string, "year"?: string, "details"?: string }]
+  },
+  "coverLetter": {
+    "salutation": string,
+    "paragraphs": string[],
+    "closing": string,
+    "signature": string
+  }
+}`;
+
+function buildUserPrompt(cvText: string, jdText: string, format: "one-page" | "standard"): string {
   return `You will optimize a candidate's CV against a job description, tailoring it to the specific company and role.
 
 # Job Description
@@ -123,7 +152,7 @@ Use these insights to calibrate tone and emphasis throughout the CV — e.g. sta
 ## STEP 2 — Extract candidate facts
 1. Real name (or "Candidate" if unclear).
 2. Contact info: email, phone, location, LinkedIn URL, personal website. Never invent — only include what's in the CV.
-3. Job title from the JD.
+3. Job title from the JD (use as "jobTitle" in the JSON).
 
 ## STEP 3 — Rewrite the CV
 4. Use ATS-optimized language: mirror JD keywords where the candidate's experience truthfully supports it. Use strong action verbs. Quantify impact using numbers already in the CV; never invent metrics.
@@ -131,9 +160,9 @@ Use these insights to calibrate tone and emphasis throughout the CV — e.g. sta
 6. Organize sections in this order (skip sections with no real content):
    summary → skills → experience → education → projects → professionalDevelopment
 
-   ${formatInstructions}
+   ${formatInstructions(format)}
 
-   professionalDevelopment: each item has name (certification, course, or award), optional provider, optional year, optional one-line details. Include items mentioned in the CV first. If none found, suggest 1–3 plausible items that match skills the candidate already demonstrates. Never fabricate brand-name certifications; use generic titles when uncertain (e.g. "Advanced SQL for Analytics" rather than "Mode Analytics Certification").
+   professionalDevelopment: each item has name (certification, course, or award), optional provider, optional year, optional one-line details. Include items mentioned in the CV first. If none found, suggest 1–3 plausible items that match skills the candidate already demonstrates. Never fabricate brand-name certifications; use generic titles when uncertain.
 
 ## STEP 4 — ATS score
 7. Compute:
@@ -157,32 +186,79 @@ Use these insights to calibrate tone and emphasis throughout the CV — e.g. sta
 
 Respond with ONLY a JSON object matching this exact shape:
 
-{
-  "jobTitle": string,
-  "atsScore": number,
-  "breakdown": { "keywords": number, "experience": number, "formatting": number, "completeness": number },
-  "summary": {
-    "topImprovements": string[],
-    "missingKeywords": string[],
-    "nextSteps": string[]
-  },
-  "optimizedCv": {
-    "candidateName": string,
-    "contact": { "email"?: string, "phone"?: string, "location"?: string, "linkedin"?: string, "website"?: string },
-    "summary": string,
-    "skills": [{ "category": string, "items": string[] }],
-    "experience": [{ "company": string, "title": string, "location"?: string, "startDate"?: string, "endDate"?: string, "bullets": string[] }],
-    "education": [{ "institution": string, "degree": string, "field"?: string, "location"?: string, "startDate"?: string, "endDate"?: string, "details": string[] }],
-    "projects": [{ "name": string, "context"?: string, "bullets": string[] }],
-    "professionalDevelopment": [{ "name": string, "provider"?: string, "year"?: string, "details"?: string }]
-  },
-  "coverLetter": {
-    "salutation": string,
-    "paragraphs": string[],
-    "closing": string,
-    "signature": string
-  }
+${CV_JSON_SCHEMA}
+
+Respond with the JSON object only.`;
 }
+
+function buildCompanyPrompt(cvText: string, companyText: string, format: "one-page" | "standard"): string {
+  return `You will tailor a candidate's CV for a speculative/general application to a company — no specific job posting is available. Analyze the company from their website, infer their industry, culture, and values, then align the CV to appeal to that company for the candidate's natural professional area.
+
+# Company Website Content
+"""
+${companyText.slice(0, 6000)}
+"""
+
+# Candidate CV (raw extracted text)
+"""
+${cvText.slice(0, 8000)}
+"""
+
+# Step-by-step Instructions
+
+## STEP 1 — Analyze the company
+From the website text, determine:
+- Company name (use it in the cover letter; if unclear use "the company")
+- Company type: startup / scale-up / enterprise / agency / non-profit / government / research
+- Industry: e.g. fintech, healthcare, e-commerce, SaaS, logistics, media, deep tech
+- Culture signals: data-driven, innovation-first, collaborative, customer-obsessed, mission-driven, etc.
+- Values: repeated words or phrases that indicate what they care about
+- Tone: formal vs. informal, technical vs. accessible, global vs. local
+Use all of this to calibrate the CV's tone, verb choices, and emphasis. The CV should feel like it was written by someone who deeply understands and shares the company's ethos.
+
+## STEP 2 — Extract candidate facts
+1. Real name (or "Candidate" if unclear).
+2. Contact info: email, phone, location, LinkedIn URL, personal website. Never invent.
+3. Candidate's primary role/title: infer from the most recent or most prominent role in the CV. Use this as "jobTitle" in the JSON (e.g. "Senior Software Engineer", "Marketing Manager").
+
+## STEP 3 — Rewrite the CV
+4. Keep every role, employer, credential, and project truthfully. Never fabricate or remove anything.
+5. Reframe bullets to highlight skills and achievements that align with the company's industry and values.
+6. Use industry-appropriate ATS keywords inferred from the company's sector (not from a JD — use your knowledge of what ATS systems in this industry scan for).
+7. Organize sections in this order (skip sections with no real content):
+   summary → skills → experience → education → projects → professionalDevelopment
+
+   ${formatInstructions(format)}
+
+   professionalDevelopment: include items from the CV first. Suggest up to 2 additional plausible items relevant to the company's industry. Never fabricate brand-name credentials.
+
+## STEP 4 — ATS score
+8. Compute an ATS score as if this were a general application in the company's industry:
+   - atsScore: 88–95 for a well-matched candidate; never exceed 98.
+   - breakdown.keywords: industry vocabulary alignment (0–100)
+   - breakdown.experience: relevance of work history to the company's sector (0–100)
+   - breakdown.formatting: ATS-friendliness — usually 92–98
+   - breakdown.completeness: all key sections present (0–100)
+   Note: for "missingKeywords" list 4–8 industry-standard terms now woven into the CV.
+
+## STEP 5 — Optimization summary
+9. topImprovements: exactly 3 statements of what you improved.
+   missingKeywords: 4–8 industry-relevant keywords added.
+   nextSteps: 3–5 actionable suggestions (e.g. tailor further once a specific role is posted, add a portfolio, pursue a relevant certification).
+
+## STEP 6 — Cover letter (speculative)
+10. Write a compelling speculative cover letter expressing genuine interest in the company:
+    - salutation: "Dear Hiring Team," or "Dear [Company Name] Team," if company name is clear
+    - 3–4 paragraphs:
+      • Opening: express specific, informed admiration for the company (reference their actual industry/mission/values from the website).
+      • Body: highlight 2–3 real achievements from the CV that are relevant to the company's work and culture.
+      • Closing: express enthusiasm for contributing to their mission, invite them to reach out for any suitable opening.
+    - closing: e.g. "Sincerely,"
+    - signature: candidate's name
+
+Respond with ONLY a JSON object matching this exact shape:
+
+${CV_JSON_SCHEMA}
 
 Respond with the JSON object only.`;
 }
@@ -340,23 +416,31 @@ function extractJson(text: string): unknown {
   return JSON.parse(json);
 }
 
+async function callClaude(prompt: string): Promise<OptimizationResult> {
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8192,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: prompt }],
+  });
+  const block = message.content[0];
+  const text = block && block.type === "text" ? block.text : "";
+  if (!text) throw new Error("Optimization service returned an empty response");
+  return normalize(extractJson(text));
+}
+
 export async function optimizeCvAgainstJd(
   cvText: string,
   jdText: string,
   format: "one-page" | "standard" = "standard",
 ): Promise<OptimizationResult> {
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 8192,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserPrompt(cvText, jdText, format) }],
-  });
+  return callClaude(buildUserPrompt(cvText, jdText, format));
+}
 
-  const block = message.content[0];
-  const text = block && block.type === "text" ? block.text : "";
-  if (!text) {
-    throw new Error("Optimization service returned an empty response");
-  }
-  const parsed = extractJson(text);
-  return normalize(parsed);
+export async function optimizeCvForCompany(
+  cvText: string,
+  companyText: string,
+  format: "one-page" | "standard" = "standard",
+): Promise<OptimizationResult> {
+  return callClaude(buildCompanyPrompt(cvText, companyText, format));
 }

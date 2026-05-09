@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import multer from "multer";
 import { detectKind, parseCv } from "../lib/parseFile";
 import { fetchJobDescription } from "../lib/fetchJd";
-import { optimizeCvAgainstJd } from "../lib/optimize";
+import { optimizeCvAgainstJd, optimizeCvForCompany } from "../lib/optimize";
 import { generateCoverLetterPdf, generateCvPdf, type CoverLetterContent } from "../lib/generatePdf";
 import { generateCoverLetterDocx, generateCvDocx } from "../lib/generateDocx";
 import { createSession, getSession, type FileType } from "../lib/sessionStore";
@@ -49,42 +49,54 @@ router.post(
 
     const jdTextRaw = typeof req.body?.jdText === "string" ? req.body.jdText.trim() : "";
     const jdUrlRaw = typeof req.body?.jdUrl === "string" ? req.body.jdUrl.trim() : "";
+    const companyUrlRaw = typeof req.body?.companyUrl === "string" ? req.body.companyUrl.trim() : "";
+
+    // Determine mode: company-website vs role-specific
+    const isCompanyMode = !!companyUrlRaw && !jdTextRaw && !jdUrlRaw;
 
     let jdText = "";
-    if (jdTextRaw) {
-      if (jdTextRaw.length < MIN_JD_CHARS || jdTextRaw.length > MAX_JD_CHARS) {
-        res.status(400).json({
-          error: `Job description too short or long. Paste a complete JD (${MIN_JD_CHARS}–${MAX_JD_CHARS} chars).`,
-          code: "JD_LENGTH",
-        });
+    if (!isCompanyMode) {
+      if (jdTextRaw) {
+        if (jdTextRaw.length < MIN_JD_CHARS || jdTextRaw.length > MAX_JD_CHARS) {
+          res.status(400).json({
+            error: `Job description too short or long. Paste a complete JD (${MIN_JD_CHARS}–${MAX_JD_CHARS} chars).`,
+            code: "JD_LENGTH",
+          });
+          return;
+        }
+        jdText = jdTextRaw;
+      } else if (jdUrlRaw) {
+        if (!/^https:\/\//i.test(jdUrlRaw)) {
+          res.status(400).json({ error: "URL must use https://. Please paste the JD text manually.", code: "JD_URL_INVALID" });
+          return;
+        }
+        try {
+          jdText = await fetchJobDescription(jdUrlRaw);
+        } catch (err) {
+          req.log?.warn({ err, url: jdUrlRaw }, "Failed to fetch JD URL");
+          res.status(400).json({ error: "Unable to fetch URL. Please paste the JD text manually.", code: "JD_URL_FETCH" });
+          return;
+        }
+        if (jdText.length < MIN_JD_CHARS) {
+          res.status(400).json({
+            error: "Couldn't extract enough text from the URL. Please paste the JD manually.",
+            code: "JD_URL_EMPTY",
+          });
+          return;
+        }
+        if (jdText.length > MAX_JD_CHARS) {
+          jdText = jdText.slice(0, MAX_JD_CHARS);
+        }
+      } else {
+        res.status(400).json({ error: "Provide a job description (text or URL) or a company website URL.", code: "JD_MISSING" });
         return;
-      }
-      jdText = jdTextRaw;
-    } else if (jdUrlRaw) {
-      if (!/^https:\/\//i.test(jdUrlRaw)) {
-        res.status(400).json({ error: "URL must use https://. Please paste the JD text manually.", code: "JD_URL_INVALID" });
-        return;
-      }
-      try {
-        jdText = await fetchJobDescription(jdUrlRaw);
-      } catch (err) {
-        req.log?.warn({ err, url: jdUrlRaw }, "Failed to fetch JD URL");
-        res.status(400).json({ error: "Unable to fetch URL. Please paste the JD text manually.", code: "JD_URL_FETCH" });
-        return;
-      }
-      if (jdText.length < MIN_JD_CHARS) {
-        res.status(400).json({
-          error: "Couldn't extract enough text from the URL. Please paste the JD manually.",
-          code: "JD_URL_EMPTY",
-        });
-        return;
-      }
-      if (jdText.length > MAX_JD_CHARS) {
-        jdText = jdText.slice(0, MAX_JD_CHARS);
       }
     } else {
-      res.status(400).json({ error: "Provide either a job description text or a URL.", code: "JD_MISSING" });
-      return;
+      // Company mode: validate URL
+      if (!/^https:\/\//i.test(companyUrlRaw)) {
+        res.status(400).json({ error: "Company URL must use https://.", code: "COMPANY_URL_INVALID" });
+        return;
+      }
     }
 
     let cvText: string;
@@ -111,7 +123,23 @@ router.post(
 
     let result;
     try {
-      result = await optimizeCvAgainstJd(cvText, jdText, format);
+      if (isCompanyMode) {
+        let companyText: string;
+        try {
+          companyText = await fetchJobDescription(companyUrlRaw);
+        } catch (err) {
+          req.log?.warn({ err, url: companyUrlRaw }, "Failed to fetch company URL");
+          res.status(400).json({ error: "Unable to fetch company website. Please check the URL and try again.", code: "COMPANY_URL_FETCH" });
+          return;
+        }
+        if (companyText.length < 50) {
+          res.status(400).json({ error: "Couldn't extract enough text from the company website.", code: "COMPANY_URL_EMPTY" });
+          return;
+        }
+        result = await optimizeCvForCompany(cvText, companyText, format);
+      } else {
+        result = await optimizeCvAgainstJd(cvText, jdText, format);
+      }
     } catch (err) {
       req.log?.error({ err }, "Optimization failed");
       res.status(500).json({

@@ -134,6 +134,9 @@ export const optimizeCv = async (
   if (optimizeCvBody.format !== undefined) {
     formData.append(`format`, optimizeCvBody.format);
   }
+  if (optimizeCvBody.companyUrl !== undefined) {
+    formData.append(`companyUrl`, optimizeCvBody.companyUrl);
+  }
 
   return customFetch<OptimizeResponse>(getOptimizeCvUrl(), {
     ...options,
