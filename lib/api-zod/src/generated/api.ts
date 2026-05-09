@@ -29,6 +29,10 @@ export const OptimizeCvBody = zod.object({
     .optional()
     .describe("Job description text (50-5000 chars)"),
   jdUrl: zod.string().optional().describe("Job description URL (https only)"),
+  format: zod
+    .enum(["one-page", "standard"])
+    .optional()
+    .describe("CV length format (one-page or standard\/unlimited)"),
 });
 
 export const OptimizeCvResponse = zod.object({

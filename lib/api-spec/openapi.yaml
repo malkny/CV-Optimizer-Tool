@@ -52,6 +52,10 @@ paths:
                 jdUrl:
                   type: string
                   description: Job description URL (https only)
+                format:
+                  type: string
+                  enum: [one-page, standard]
+                  description: CV length format (one-page or standard/unlimited)
               required:
                 - cv
       responses:

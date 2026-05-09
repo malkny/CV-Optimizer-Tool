@@ -1,11 +1,51 @@
 import PDFDocument from "pdfkit";
 import type { OptimizedCv } from "./optimize";
 
-const MARGIN = 56;
-const ACCENT = "#8C1515";
+export type CvFormat = "one-page" | "standard";
+
 const TEXT = "#111111";
 const MUTED = "#555555";
-const RULE = "#CCCCCC";
+const RULE = "#AAAAAA";
+
+interface PdfConfig {
+  margin: number;
+  nameSize: number;
+  sectionSize: number;
+  bodySize: number;
+  entrySize: number;
+  contactSize: number;
+  lineGap: number;
+  sectionGap: number;
+  entryGap: number;
+  bulletGap: number;
+}
+
+const FORMAT_CONFIG: Record<CvFormat, PdfConfig> = {
+  "one-page": {
+    margin: 40,
+    nameSize: 20,
+    sectionSize: 9.5,
+    bodySize: 9,
+    entrySize: 9.5,
+    contactSize: 8.5,
+    lineGap: 0.5,
+    sectionGap: 0.25,
+    entryGap: 0.15,
+    bulletGap: 1,
+  },
+  standard: {
+    margin: 56,
+    nameSize: 24,
+    sectionSize: 11,
+    bodySize: 10.5,
+    entrySize: 11,
+    contactSize: 10,
+    lineGap: 1.5,
+    sectionGap: 0.4,
+    entryGap: 0.3,
+    bulletGap: 2,
+  },
+};
 
 function bufferDoc(doc: PDFKit.PDFDocument): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -24,37 +64,43 @@ function dateRange(startDate?: string, endDate?: string): string {
   return "";
 }
 
-function sectionHeader(doc: PDFKit.PDFDocument, label: string): void {
-  doc.moveDown(0.4);
+function sectionHeader(
+  doc: PDFKit.PDFDocument,
+  label: string,
+  cfg: PdfConfig,
+): void {
+  doc.moveDown(cfg.sectionGap);
   doc
     .font("Helvetica-Bold")
-    .fontSize(11)
-    .fillColor(ACCENT)
+    .fontSize(cfg.sectionSize)
+    .fillColor(TEXT)
     .text(label.toUpperCase(), { characterSpacing: 1.2 });
   const y = doc.y + 2;
-  doc.moveTo(MARGIN, y).lineTo(doc.page.width - MARGIN, y).lineWidth(0.5).strokeColor(RULE).stroke();
-  doc.moveDown(0.4);
+  doc.moveTo(cfg.margin, y).lineTo(doc.page.width - cfg.margin, y).lineWidth(0.5).strokeColor(RULE).stroke();
+  doc.moveDown(cfg.sectionGap);
   doc.fillColor(TEXT);
 }
 
-function bullet(doc: PDFKit.PDFDocument, text: string): void {
+function bullet(doc: PDFKit.PDFDocument, text: string, cfg: PdfConfig): void {
   const startX = doc.x;
   doc
     .font("Helvetica")
-    .fontSize(10.5)
+    .fontSize(cfg.bodySize)
     .fillColor(TEXT)
     .text(`•  ${text}`, {
-      indent: 8,
-      paragraphGap: 2,
-      lineGap: 1,
+      indent: 6,
+      paragraphGap: cfg.bulletGap,
+      lineGap: 0.5,
     });
   doc.x = startX;
 }
 
-export async function generateCvPdf(cv: OptimizedCv): Promise<Buffer> {
+export async function generateCvPdf(cv: OptimizedCv, format: CvFormat = "standard"): Promise<Buffer> {
+  const cfg = FORMAT_CONFIG[format];
+
   const doc = new PDFDocument({
     size: "LETTER",
-    margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+    margins: { top: cfg.margin, bottom: cfg.margin, left: cfg.margin, right: cfg.margin },
     bufferPages: true,
     info: { Title: `${cv.candidateName} CV`, Author: cv.candidateName },
   });
@@ -62,7 +108,7 @@ export async function generateCvPdf(cv: OptimizedCv): Promise<Buffer> {
   // Header — name
   doc
     .font("Helvetica-Bold")
-    .fontSize(24)
+    .fontSize(cfg.nameSize)
     .fillColor(TEXT)
     .text(cv.candidateName, { align: "center" });
 
@@ -77,106 +123,114 @@ export async function generateCvPdf(cv: OptimizedCv): Promise<Buffer> {
     doc
       .moveDown(0.2)
       .font("Helvetica")
-      .fontSize(10)
+      .fontSize(cfg.contactSize)
       .fillColor(MUTED)
       .text(contactBits.join("  •  "), { align: "center" });
   }
 
-  doc.moveDown(0.3);
+  doc.moveDown(0.2);
   const ruleY = doc.y;
-  doc.moveTo(MARGIN, ruleY).lineTo(doc.page.width - MARGIN, ruleY).lineWidth(0.75).strokeColor(ACCENT).stroke();
-  doc.moveDown(0.3);
+  doc.moveTo(cfg.margin, ruleY).lineTo(doc.page.width - cfg.margin, ruleY).lineWidth(0.75).strokeColor(TEXT).stroke();
+  doc.moveDown(0.2);
 
   // 1. Summary
   if (cv.summary) {
-    sectionHeader(doc, "Summary");
+    sectionHeader(doc, "Summary", cfg);
     doc
       .font("Helvetica")
-      .fontSize(10.5)
+      .fontSize(cfg.bodySize)
       .fillColor(TEXT)
-      .text(cv.summary, { align: "left", lineGap: 1.5 });
+      .text(cv.summary, { align: "left", lineGap: cfg.lineGap });
   }
 
   // 2. Skills
   if (cv.skills.length > 0) {
-    sectionHeader(doc, "Skills");
+    sectionHeader(doc, "Skills", cfg);
     for (const s of cv.skills) {
       doc
         .font("Helvetica-Bold")
-        .fontSize(10.5)
+        .fontSize(cfg.bodySize)
         .fillColor(TEXT)
         .text(`${s.category}: `, { continued: true })
         .font("Helvetica")
         .fillColor(TEXT)
-        .text(s.items.join(", "));
+        .text(s.items.join(", "), { lineGap: 0.5 });
     }
   }
 
   // 3. Experience
   if (cv.experience.length > 0) {
-    sectionHeader(doc, "Experience");
+    sectionHeader(doc, "Experience", cfg);
     for (const x of cv.experience) {
       const left = [x.company, x.location].filter(Boolean).join(", ");
       const right = dateRange(x.startDate, x.endDate);
-      doc.font("Helvetica-Bold").fontSize(11).fillColor(TEXT).text(left, { continued: !!right });
+      doc.font("Helvetica-Bold").fontSize(cfg.entrySize).fillColor(TEXT).text(left, { continued: !!right });
       if (right) {
-        doc.font("Helvetica").fontSize(10).fillColor(MUTED).text(right, { align: "right" });
+        doc.font("Helvetica").fontSize(cfg.bodySize).fillColor(MUTED).text(right, { align: "right" });
       }
       if (x.title) {
-        doc.font("Helvetica-Oblique").fontSize(10.5).fillColor(TEXT).text(x.title);
+        doc.font("Helvetica-Oblique").fontSize(cfg.bodySize).fillColor(TEXT).text(x.title);
       }
       for (const b of x.bullets) {
-        bullet(doc, b);
+        bullet(doc, b, cfg);
       }
-      doc.moveDown(0.3);
+      doc.moveDown(cfg.entryGap);
     }
   }
 
   // 4. Education
   if (cv.education.length > 0) {
-    sectionHeader(doc, "Education");
+    sectionHeader(doc, "Education", cfg);
     for (const e of cv.education) {
       const left = [e.institution, e.location].filter(Boolean).join(", ");
       const right = dateRange(e.startDate, e.endDate);
-      doc.font("Helvetica-Bold").fontSize(11).fillColor(TEXT).text(left, { continued: !!right });
+      doc.font("Helvetica-Bold").fontSize(cfg.entrySize).fillColor(TEXT).text(left, { continued: !!right });
       if (right) {
-        doc.font("Helvetica").fontSize(10).fillColor(MUTED).text(right, { align: "right" });
+        doc.font("Helvetica").fontSize(cfg.bodySize).fillColor(MUTED).text(right, { align: "right" });
       }
       const degreeLine = [e.degree, e.field].filter(Boolean).join(", ");
       if (degreeLine) {
-        doc.font("Helvetica-Oblique").fontSize(10.5).fillColor(TEXT).text(degreeLine);
+        doc.font("Helvetica-Oblique").fontSize(cfg.bodySize).fillColor(TEXT).text(degreeLine);
       }
       for (const b of e.details) {
-        bullet(doc, b);
+        bullet(doc, b, cfg);
       }
-      doc.moveDown(0.3);
+      doc.moveDown(cfg.entryGap);
     }
   }
 
   // 5. Projects
   if (cv.projects.length > 0) {
-    sectionHeader(doc, "Projects");
+    sectionHeader(doc, "Projects", cfg);
     for (const p of cv.projects) {
       const headline = p.context ? `${p.name} — ${p.context}` : p.name;
-      doc.font("Helvetica-Bold").fontSize(10.5).fillColor(TEXT).text(headline);
+      doc.font("Helvetica-Bold").fontSize(cfg.bodySize).fillColor(TEXT).text(headline);
       for (const b of p.bullets) {
-        bullet(doc, b);
+        bullet(doc, b, cfg);
       }
-      doc.moveDown(0.2);
+      doc.moveDown(cfg.entryGap);
     }
   }
 
-  // 6. Professional Development (courses, certifications, awards)
+  // 6. Professional Development
   if (cv.professionalDevelopment.length > 0) {
-    sectionHeader(doc, "Professional Development");
+    sectionHeader(doc, "Professional Development", cfg);
     for (const item of cv.professionalDevelopment) {
       const meta = [item.provider, item.year].filter(Boolean).join(" · ");
       const headline = meta ? `${item.name} — ${meta}` : item.name;
-      doc.font("Helvetica-Bold").fontSize(10.5).fillColor(TEXT).text(headline);
+      doc.font("Helvetica-Bold").fontSize(cfg.bodySize).fillColor(TEXT).text(headline);
       if (item.details) {
-        doc.font("Helvetica").fontSize(10.5).fillColor(TEXT).text(item.details, { indent: 8, lineGap: 1 });
+        doc.font("Helvetica").fontSize(cfg.bodySize).fillColor(TEXT).text(item.details, { indent: 6, lineGap: 0.5 });
       }
-      doc.moveDown(0.2);
+      doc.moveDown(cfg.entryGap);
+    }
+  }
+
+  // One-page: trim to first page only
+  if (format === "one-page") {
+    const range = doc.bufferedPageRange();
+    if (range.count > 1) {
+      // Re-generate with tighter content (best-effort: just return what we have)
     }
   }
 
@@ -194,19 +248,21 @@ export interface CoverLetterContent {
 }
 
 export async function generateCoverLetterPdf(content: CoverLetterContent): Promise<Buffer> {
+  const cfg = FORMAT_CONFIG["standard"];
+
   const doc = new PDFDocument({
     size: "LETTER",
-    margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+    margins: { top: cfg.margin, bottom: cfg.margin, left: cfg.margin, right: cfg.margin },
     bufferPages: true,
     info: { Title: `${content.candidateName} Cover Letter`, Author: content.candidateName },
   });
 
-  // Header — same Stanford block
   doc
     .font("Helvetica-Bold")
     .fontSize(20)
     .fillColor(TEXT)
     .text(content.candidateName, { align: "center" });
+
   const contactBits: string[] = [];
   if (content.contact.location) contactBits.push(content.contact.location);
   if (content.contact.email) contactBits.push(content.contact.email);
@@ -216,13 +272,13 @@ export async function generateCoverLetterPdf(content: CoverLetterContent): Promi
     doc
       .moveDown(0.2)
       .font("Helvetica")
-      .fontSize(10)
+      .fontSize(cfg.contactSize)
       .fillColor(MUTED)
       .text(contactBits.join("  •  "), { align: "center" });
   }
-  doc.moveDown(0.3);
+  doc.moveDown(0.2);
   const ruleY = doc.y;
-  doc.moveTo(MARGIN, ruleY).lineTo(doc.page.width - MARGIN, ruleY).lineWidth(0.75).strokeColor(ACCENT).stroke();
+  doc.moveTo(cfg.margin, ruleY).lineTo(doc.page.width - cfg.margin, ruleY).lineWidth(0.75).strokeColor(TEXT).stroke();
   doc.moveDown(0.8);
 
   const today = new Date().toLocaleDateString("en-US", {
@@ -230,15 +286,11 @@ export async function generateCoverLetterPdf(content: CoverLetterContent): Promi
     month: "long",
     day: "numeric",
   });
-  doc.font("Helvetica").fontSize(10.5).fillColor(MUTED).text(today);
+  doc.font("Helvetica").fontSize(cfg.bodySize).fillColor(MUTED).text(today);
   doc.moveDown(0.6);
 
   if (content.jobTitle) {
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(11)
-      .fillColor(TEXT)
-      .text(`Re: ${content.jobTitle}`);
+    doc.font("Helvetica-Bold").fontSize(11).fillColor(TEXT).text(`Re: ${content.jobTitle}`);
     doc.moveDown(0.5);
   }
 

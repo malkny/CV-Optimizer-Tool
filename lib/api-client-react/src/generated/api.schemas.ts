@@ -54,6 +54,17 @@ export interface OptimizeResponse {
   expiresAt: string;
 }
 
+/**
+ * CV length format (one-page or standard/unlimited)
+ */
+export type OptimizeCvBodyFormat =
+  (typeof OptimizeCvBodyFormat)[keyof typeof OptimizeCvBodyFormat];
+
+export const OptimizeCvBodyFormat = {
+  "one-page": "one-page",
+  standard: "standard",
+} as const;
+
 export type OptimizeCvBody = {
   /** CV file (.pdf or .docx, max 5MB) */
   cv: Blob;
@@ -61,4 +72,6 @@ export type OptimizeCvBody = {
   jdText?: string;
   /** Job description URL (https only) */
   jdUrl?: string;
+  /** CV length format (one-page or standard/unlimited) */
+  format?: OptimizeCvBodyFormat;
 };

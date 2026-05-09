@@ -12,4 +12,5 @@ export * from "./errorResponse";
 export * from "./healthStatus";
 export * from "./optimizationSummary";
 export * from "./optimizeCvBody";
+export * from "./optimizeCvBodyFormat";
 export * from "./optimizeResponse";

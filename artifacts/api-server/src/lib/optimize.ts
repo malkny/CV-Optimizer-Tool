@@ -78,7 +78,24 @@ const SYSTEM_PROMPT = `You are an expert career coach and ATS (Applicant Trackin
 
 You ALWAYS respond with a single JSON object that exactly matches the requested schema. No markdown, no commentary, no code fences.`;
 
-function buildUserPrompt(cvText: string, jdText: string): string {
+function buildUserPrompt(cvText: string, jdText: string, format: "one-page" | "standard"): string {
+  const formatInstructions =
+    format === "one-page"
+      ? `CV FORMAT: ONE PAGE — content must fit on a single page.
+   - summary: 2 tight sentences max.
+   - skills: 2-3 categories, items comma-separated on one line each.
+   - experience: max 2-3 bullets per role (most impactful only). Omit roles older than 10 years if needed.
+   - education: 0-1 detail bullets per entry.
+   - projects: 0-2 projects, 1-2 bullets each.
+   - professionalDevelopment: 0-3 items, no details field.`
+      : `CV FORMAT: STANDARD (no page limit) — include full detail.
+   - summary: 2-3 sentences.
+   - skills: 2-5 categories.
+   - experience: 3-5 bullets per role.
+   - education: 0-3 detail bullets per entry.
+   - projects: 0-4 projects, 1-3 bullets each.
+   - professionalDevelopment: 0-8 items.`;
+
   return `You will be given a candidate's CV and a target job description. Optimize the CV for ATS alignment with the JD and write a tailored cover letter.
 
 # Job Description
@@ -98,12 +115,9 @@ ${cvText.slice(0, 8000)}
 3. Identify the job title from the JD.
 4. Rewrite the CV using ATS-optimized language: incorporate JD keywords, quantify impact where the original implies it, use strong action verbs, mirror the JD's terminology where the candidate's real experience supports it.
 5. Organize the CV in this ATS-optimized order (omit sections the candidate has no content for; never invent content):
-   1. summary — a 2-3 sentence professional summary tailored to the role.
-   2. skills — 2-5 categories (e.g. "Languages", "Frameworks", "Tools"), each with concise items. Mirror JD vocabulary where the candidate has the skill.
-   3. experience — entries with company, title, location, startDate, endDate, and 3-5 strong achievement bullets per role. Bullets should be one line each, start with an action verb, and incorporate JD keywords where truthful.
-   4. education — entries with institution, degree, field, location, startDate, endDate (use formats like "2019" or "Sep 2019"), and 0-3 short detail bullets.
-   5. projects — 0-4 projects with name, optional context, and 1-3 bullets.
-   6. professionalDevelopment — 0-8 items, each with: name (course title, certification, or award), optional provider (e.g. "Coursera", "AWS", "ACM"), optional year, and an optional one-line details. Include relevant online courses, certifications, and awards. If the candidate's CV does not mention any, infer 1-3 plausible courses that genuinely match their listed skills (e.g. an "AWS Certified Solutions Architect" item only if AWS already appears in their skills/experience). Never fabricate brand-name credentials they don't have — if uncertain, prefer generic course titles like "Advanced React Patterns" over "Coursera React Certification".
+   ${formatInstructions}
+   Section order: summary → skills → experience → education → projects → professionalDevelopment.
+   professionalDevelopment items: name (course title, certification, or award), optional provider (e.g. "Coursera", "AWS", "ACM"), optional year, optional one-line details. Include relevant courses, certifications, awards. If the candidate's CV does not mention any, infer plausible items matching their listed skills. Never fabricate brand-name credentials — if uncertain, prefer generic titles like "Advanced React Patterns".
 6. Compute an ATS match score:
    - Target the 90-95 range. Push to 95+ only if the candidate truly matches; never above 98.
    - breakdown: keywords (alignment with JD vocabulary, 0-100), experience (relevance of work history, 0-100), formatting (ATS-friendliness, 0-100; assume the rendered template is highly ATS-friendly so this is usually 90-100), completeness (presence of required CV sections, 0-100).
@@ -306,12 +320,13 @@ function extractJson(text: string): unknown {
 export async function optimizeCvAgainstJd(
   cvText: string,
   jdText: string,
+  format: "one-page" | "standard" = "standard",
 ): Promise<OptimizationResult> {
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 8192,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserPrompt(cvText, jdText) }],
+    messages: [{ role: "user", content: buildUserPrompt(cvText, jdText, format) }],
   });
 
   const block = message.content[0];

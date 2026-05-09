@@ -106,9 +106,12 @@ router.post(
       return;
     }
 
+    const formatRaw = typeof req.body?.format === "string" ? req.body.format.trim() : "";
+    const format: "one-page" | "standard" = formatRaw === "one-page" ? "one-page" : "standard";
+
     let result;
     try {
-      result = await optimizeCvAgainstJd(cvText, jdText);
+      result = await optimizeCvAgainstJd(cvText, jdText, format);
     } catch (err) {
       req.log?.error({ err }, "Optimization failed");
       res.status(500).json({
@@ -134,8 +137,8 @@ router.post(
     let coverDocx: Buffer;
     try {
       [cvPdf, cvDocx, coverPdf, coverDocx] = await Promise.all([
-        generateCvPdf(result.optimizedCv),
-        generateCvDocx(result.optimizedCv),
+        generateCvPdf(result.optimizedCv, format),
+        generateCvDocx(result.optimizedCv, format),
         generateCoverLetterPdf(coverContent),
         generateCoverLetterDocx(coverContent),
       ]);

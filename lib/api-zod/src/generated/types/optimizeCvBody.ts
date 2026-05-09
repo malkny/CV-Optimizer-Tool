@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OptimizeCvBodyFormat } from "./optimizeCvBodyFormat";
 
 export type OptimizeCvBody = {
   /** CV file (.pdf or .docx, max 5MB) */
@@ -13,4 +14,6 @@ export type OptimizeCvBody = {
   jdText?: string;
   /** Job description URL (https only) */
   jdUrl?: string;
+  /** CV length format (one-page or standard/unlimited) */
+  format?: OptimizeCvBodyFormat;
 };
