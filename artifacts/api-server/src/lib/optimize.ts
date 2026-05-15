@@ -162,7 +162,7 @@ Use these insights to calibrate tone and emphasis throughout the CV — e.g. sta
 
    ${formatInstructions(format)}
 
-   professionalDevelopment: each item has name (certification, course, or award), optional provider, optional year, optional one-line details. Include items mentioned in the CV first. If none found, suggest 1–3 plausible items that match skills the candidate already demonstrates. Never fabricate brand-name certifications; use generic titles when uncertain.
+   professionalDevelopment: ONLY include items explicitly present in the candidate's original CV (certifications, courses, awards, training). Do NOT invent, suggest, or add any new items. If the original CV has none, output an empty array []. Recommendations for certifications or courses belong in nextSteps only, not here.
 
 ## STEP 4 — ATS score
 7. Compute:
@@ -175,7 +175,7 @@ Use these insights to calibrate tone and emphasis throughout the CV — e.g. sta
 ## STEP 5 — Optimization summary
 8. topImprovements: exactly 3 short statements of what you improved.
    missingKeywords: 4–8 JD terms weak/absent in the original (now woven in where truthful).
-   nextSteps: 3–5 concrete, actionable suggestions for the candidate.
+   nextSteps: 3–5 concrete, actionable suggestions for the candidate. This is the right place to recommend certifications, courses, or skills the candidate should pursue.
 
 ## STEP 6 — Cover letter
 9. Write a tailored cover letter:
@@ -230,7 +230,7 @@ Use all of this to calibrate the CV's tone, verb choices, and emphasis. The CV s
 
    ${formatInstructions(format)}
 
-   professionalDevelopment: include items from the CV first. Suggest up to 2 additional plausible items relevant to the company's industry. Never fabricate brand-name credentials.
+   professionalDevelopment: ONLY include items explicitly present in the candidate's original CV. Do NOT invent or suggest new ones. If the original CV has none, output []. Any certification or course recommendations belong in nextSteps only.
 
 ## STEP 4 — ATS score
 8. Compute an ATS score as if this were a general application in the company's industry:
