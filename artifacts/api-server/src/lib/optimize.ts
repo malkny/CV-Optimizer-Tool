@@ -1,4 +1,10 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import Anthropic from "@anthropic-ai/sdk";
+import { anthropic as _integrationAnthopic } from "@workspace/integrations-anthropic-ai";
+
+// Prefer a user-supplied key (no budget limits) over the Replit-managed integration
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : _integrationAnthopic;
 
 export interface ContactInfo {
   email?: string;

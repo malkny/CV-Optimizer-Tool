@@ -142,10 +142,18 @@ router.post(
       }
     } catch (err) {
       req.log?.error({ err }, "Optimization failed");
-      res.status(500).json({
-        error: "Optimization failed. Please try again in a moment.",
-        code: "OPTIMIZE_FAILED",
-      });
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("FREE_TIER_BUDGET_EXCEEDED") || msg.includes("402") || msg.includes("PermissionDenied")) {
+        res.status(503).json({
+          error: "The AI service quota has been reached. Please add your own ANTHROPIC_API_KEY secret to continue.",
+          code: "AI_QUOTA_EXCEEDED",
+        });
+      } else {
+        res.status(500).json({
+          error: "Optimization failed. Please try again in a moment.",
+          code: "OPTIMIZE_FAILED",
+        });
+      }
       return;
     }
 
