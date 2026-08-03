@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import optimizeRouter from "./optimize";
+// ✅ Add .js extensions to satisfy Node.js ESM resolution
+import healthRouter from "./health.js";
+import optimizeRouter from "./optimize.js";
 
 const router: IRouter = Router();
 
