@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { Anthropic } from "@anthropic-ai/sdk";
 import { anthropic as _integrationAnthopic } from "@workspace/integrations-anthropic-ai";
 
 // Prefer a user-supplied key (no budget limits) over the Replit-managed integration
