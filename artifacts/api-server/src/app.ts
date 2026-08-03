@@ -2,9 +2,9 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import type { IncomingMessage, ServerResponse } from "http";
-// ✅ Explicitly specify /index.js to satisfy Node ESM resolution
 import router from "./routes/index.js";
-import { logger } from "./lib/logger";
+// ✅ Added .js extension for Node ESM compliance
+import { logger } from "./lib/logger.js";
 
 const app: Express = express();
 
