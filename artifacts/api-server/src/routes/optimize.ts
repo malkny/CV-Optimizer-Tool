@@ -1,11 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import multer from "multer";
-import { detectKind, parseCv } from "../lib/parseFile";
-import { fetchJobDescription } from "../lib/fetchJd";
-import { optimizeCvAgainstJd, optimizeCvForCompany } from "../lib/optimize";
-import { generateCoverLetterPdf, generateCvPdf, type CoverLetterContent } from "../lib/generatePdf";
-import { generateCoverLetterDocx, generateCvDocx } from "../lib/generateDocx";
-import { createSession, getSession, type FileType } from "../lib/sessionStore";
+// ✅ Added .js extensions to all local relative imports for Node ESM compliance
+import { detectKind, parseCv } from "../lib/parseFile.js";
+import { fetchJobDescription } from "../lib/fetchJd.js";
+import { optimizeCvAgainstJd, optimizeCvForCompany } from "../lib/optimize.js";
+import { generateCoverLetterPdf, generateCvPdf, type CoverLetterContent } from "../lib/generatePdf.js";
+import { generateCoverLetterDocx, generateCvDocx } from "../lib/generateDocx.js";
+import { createSession, getSession, type FileType } from "../lib/sessionStore.js";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MIN_JD_CHARS = 50;
