@@ -29,3 +29,12 @@ export function getAnthropicClient(): Anthropic {
 
   return anthropicClientInstance;
 }
+
+// Optional proxy alias to keep `export const anthropic` working without top-level throw
+export const anthropic = new Proxy({} as Anthropic, {
+  get(_target, prop) {
+    const client = getAnthropicClient();
+    const value = Reflect.get(client, prop);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});
